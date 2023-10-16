@@ -62,3 +62,4 @@ static_objects/
 *.hpm_Sound
 *.hpm_Primitive
 maps/temp/temp.hps
+entry.swd

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Content Version="1.01"
+	Type="StandAlone" 
+	Title="Echoes" 
+	Author="Alex Koehn" 
+	Description="" 
+	LauncherPic="ModLauncherImage.png" 
+	InitCfg="config/main_init_mod.cfg" 
+	UID="Koehn.Echoes"
+	PublishedId=""
+/>

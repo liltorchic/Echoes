@@ -1,0 +1,295 @@
+#include "interfaces/Map_Interface.hps"
+#include "base/Inputhandler_Types.hps"
+
+#include "helpers/helper_map.hps"
+#include "helpers/helper_props.hps"
+#include "helpers/helper_effects.hps"
+#include "helpers/helper_audio.hps"
+#include "helpers/helper_imgui.hps"
+#include "helpers/helper_sequences.hps"
+#include "helpers/helper_game.hps"
+#include "helpers/helper_modules.hps"
+#include "helpers/helper_ai.hps"
+#include "helpers/helper_player.hps"
+
+#include "helper_custom_depth.hps"
+#include "custom_depth/helper_custom_depth_audio.hps"
+
+#include "helper_imgui_station_apps_common.hps"
+#include "helper_imgui_station.hps"
+#include "helper_imgui_station_app_photoviewer.hps"
+#include "helper_imgui_station_app_error.hps"
+#include "helper_imgui_station_app_mail.hps"
+#include "helper_imgui_station_app_audioplayback.hps"
+#include "helper_imgui_station_app_doorlocks.hps"
+#include "helper_imgui_station_app_numpad.hps"
+
+//--------------------------------------------------
+ 
+/*Place any global values here. These must be const variables as they will not be saved*/
+/*This is also the place for enums and classes, but these should be avoided whenever possible*/
+ enum eComputerTerminalApp
+{
+	eComputerTerminalApp_MainMenu = -1,
+	eComputerTerminalApp_Loading,
+	eComputerTerminalApp_Redirect,
+}
+//--------------------------------------------------
+ 
+class cScrMap : iScrMap
+{
+	//--------------------------------------------
+ 
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// ==============
+	// MAIN CALLBACKS
+	// ==============
+	//{///////////////////////////////////////////////////////////////////////////////////////
+ 
+	//-------------------------------------------------------
+ 
+	////////////////////////////
+	// Set up map environment
+	void Setup()
+	{
+	Entity_AttachToEntity("Billboard_monster","01_01_leviathan_tunnels_1","01_01_leviathan_tunnels_1_Body_1",true,false,true);
+	Entity_AttachToEntity("SpotLight_monster","01_01_leviathan_tunnels_1","01_01_leviathan_tunnels_1_Body_1",true,false,true);
+	
+	Entity_SetActive("01_01_leviathan_tunnels_1",false);
+	Billboard_SetVisible("Billboard_monster",false);
+	Light_SetVisible("SpotLight_monster",false);
+	
+	ParticleSystem_SetActive("Particle_puzzle_*", false);
+	}
+	
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run first time starting map
+	void OnStart()
+	{
+		PlayerHands_SetHandModel_Diving();
+		Player_SetFootWear("default");
+		AirlockOpen("");
+		
+		
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run when entering map
+	void OnEnter()
+	{	
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run when leaving map
+	void OnLeave()
+	{
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// The player has died.
+	void OnPlayerKilled(int alRecentDeaths, const tString&in asSource)
+	{
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// To get when player makes input (mostly used for debug)
+	void OnAction(int alAction, bool abPressed) 
+	{
+		if(abPressed==false) return;
+		
+		if(alAction == eAction_Test1)
+		{
+			activateMonster();
+		}
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// This only used for pure debug purposes when info needs to printed.
+	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
+	{
+		//afY = cLux_DrawDebugText("My Debug value:"+..., afY);
+		return afY;
+	}
+ 
+	//-------------------------------------------------------
+
+ 
+ 
+	//} END MAIN CALLBACKS
+	
+	cSequenceStatesData mAirlockOpen;
+	void AirlockOpen(const tString &in asTimer)
+	{
+		
+		Sequence_Begin("AirlockOpen", mAirlockOpen);
+				
+			if (Sequence_DoStepAndWait(3.0f)){}
+			if (Sequence_DoStepAndWait(2.0f))
+			{
+				Sound_CreateAtEntity("door_creak", "level_amb_shared_underwater/amb/spots/metal/medium_dull_metal_groan_spot", "slidedoor_airlock_overgrown_inner_top_1");
+			}else if(Sequence_DoStepAndWait(3.1f))
+			{
+				SlideDoor_SetClosed("slidedoor_airlock_overgrown_inner_top_1", false, true);
+				SlideDoor_SetClosed("slidedoor_airlock_overgrown_inner_top_2", false, true);
+			}
+
+		Sequence_End();
+	}
+		
+	bool TriggerArea_closeAirlock(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("slidedoor_airlock_overgrown_inner_top_1", true, true);
+		SlideDoor_SetClosed("slidedoor_airlock_overgrown_inner_top_2", true, true);
+		Map_AddTimer("timer_closeAirlock_jingle",1.5f,"timer_closeAirlock_jingle");
+		return false;
+	}
+	
+	void timer_closeAirlock_jingle(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("spookie1", "01_03_upsilon_outside/SFX/intro/sequence/drone", "player");
+		Music_PlayExt("01_03_introambient",false,2.25f,1.0f,1.4f,0.0f,eMusicPrio_SceneAmb, false);
+	}
+	
+	bool TriggerArea_scare1(const tString &in asParent, const tString &in asChild, int alState)
+	{	
+		Effect_Shake_Start(0.05f,3.0f, 1.0f, 2.0f,cVector3f(1, 1, 1),0.0f);//		04_01_tau_outside/SFX/leviathan_sighting_001
+		Sound_CreateAtEntity("scare1", "03_01_omicron_outside/SFX/seal_banging/hit", "ceiling_large_single_3");
+		return false;
+	}
+	
+	bool TriggerArea_monster(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		activateMonster();
+		return false;
+	}
+	
+	void activateMonster(){
+		Sound_CreateAtEntity("scare1", "04_01_tau_outside/SFX/leviathan_sighting_001", "01_01_leviathan_tunnels_1");
+		Entity_SetActive("01_01_leviathan_tunnels_1",true);
+		Billboard_SetVisible("Billboard_monster",true);
+		Light_SetVisible("SpotLight_monster",true);
+		Entity_SetActive("distortion",true);	
+		Prop_MoveLinearTo("01_01_leviathan_tunnels_1","monster_move",10.0f,4.0f,0.33f,true);
+		Sound_CreateAtEntity("lev", "NPC_Creatures/Foley/Underwater/Leviathan/moving", "01_01_leviathan_tunnels_1");
+		Map_AddTimer("timer_monstermusic",7.2f,"timer_monstermusic");
+	}
+	
+	void timer_monstermusic(const tString &in asTimer)
+	{
+		Music_PlayExt("02_07_akers_chase",false,2.25f,1.0f,1.4f,0.0f,eMusicPrio_BigEvent, false);
+
+	}
+	
+	bool monster_calm(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Music_Stop(2.0f,eMusicPrio_BigEvent);
+		Entity_SetActive("distortion",false);
+		Entity_SetActive("block_box_MONSTER",true);
+		Entity_SetActive("TriggerArea_1",false);
+		return false;
+	}
+	
+	void pump_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == -1 && redirect_notPressed == false)
+		{
+			Slide_SetLocked("pump_1",true,true);
+			Entity_SetInteractionDisabled("pump_1",true);
+			Lamp_SetLit("pumplampset_*",false,true);
+			Map_AddTimer("timer_piston_1",0.5f,"timer_piston_1");
+			Map_AddTimer("timer_piston_2",1.0f,"timer_piston_2");
+			Map_AddTimer("timer_piston_3",1.5f,"timer_piston_3");
+			Map_AddTimer("timer_piston_4",2.0f,"timer_piston_4");
+			ParticleSystem_SetActive("Particle_puzzle_*", true);
+			Sound_CreateAtEntity("bubble", "level_amb_shared_underwater/amb/spots/water/bubbles/small_oneshot", "Particle_puzzle_1");
+			Entity_SetActive("Sound_5",true);
+		}
+	}
+	bool redirect_notPressed = true;
+	void terminal_tunnel_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_underwater_tunnel");
+		
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		StationGuiBG_Taskbar("");
+		cImGuiLabelData Title;
+		cImGuiLabelData Content;
+		
+		Title.mFont.mvSize = cVector2f(65, 65);
+		Content.mFont.mvSize = cVector2f(40, 40);
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu);
+		bool bBackButton = true;
+		
+		switch(lActiveApp)
+            {
+				
+			case eComputerTerminalApp_MainMenu:
+					StationGui_AddApp("ComputerApp_Redirect_Title",redirect_notPressed,eComputerTerminalApp_Loading);
+					StationGui_AddApp("ComputerApp_Admin_Title",false,eComputerTerminalApp_Redirect);
+					StationGui_AddApp("ComputerApp_Other_Title",!redirect_notPressed,eComputerTerminalApp_Redirect);
+					StationGui_MainMenu();
+                    bBackButton = false;
+			break;
+			
+			case eComputerTerminalApp_Loading:
+				if(StationGui_LoadingWindow("ComputerApp_Redirect_Title", "text1", "text2", 5.0f, false))
+				{
+					Sound_CreateAtEntity("terminal_beep", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_omnitool_configured", "diveroom_terminal");
+					StationGui_SetActiveApp(eComputerTerminalApp_Redirect);
+				}
+				bBackButton = false;		
+			break;
+			
+			case eComputerTerminalApp_Redirect:
+				ImGui_DoLabelExt("ComputerApp_Redirect_Title", Title, cVector3f(20, 0, 0));
+				ImGui_DoLabelExt("ComputerApp_Redirect_status", Content, cVector3f(20, 100, 0));
+				if(redirect_notPressed == true)
+				{
+					Slide_SetLocked("pump_1",false,true);
+					Slide_SetSlideAmount("pump_1",1.0f);
+					Entity_SetInteractionDisabled("pump_1",false);
+					Lamp_SetLit("pumplampset_a*",true,true);
+					Map_AddTimer("timer_pumplamp",0.5f,"timer_pumplamp");
+					Sound_CreateAtEntity("comp", "Entities_OceanBottom/tech/terminal/buttons/positive", "terminal_tunnel");
+					
+				}
+				redirect_notPressed = false;
+				bBackButton = true;		
+			break;
+
+                    
+            }
+		
+            StationGui_BackButton(bBackButton);
+	}
+	
+	void timer_pumplamp(const tString &in asTimer)
+	{
+		Lamp_SetLit("pumplampset_b*",true,true);
+	}
+	
+	void timer_piston_1(const tString &in asTimer){Prop_MoveLinearTo("piston_move_1","piston_move_1_target",1.0f,1.2f,0.33f,true);Sound_CreateAtEntity("bubble", "Entities_OceanBottom/valve/valve_stuck", "piston_move_1");}
+	void timer_piston_2(const tString &in asTimer){Prop_MoveLinearTo("piston_move_2","piston_move_2_target",1.0f,1.2f,0.33f,true);Sound_CreateAtEntity("bubble", "Entities_OceanBottom/valve/valve_stuck", "piston_move_2");}
+	void timer_piston_3(const tString &in asTimer){Prop_MoveLinearTo("piston_move_3","piston_move_3_target",1.0f,1.2f,0.33f,true);Sound_CreateAtEntity("bubble", "Entities_OceanBottom/valve/valve_stuck", "piston_move_3");}
+	void timer_piston_4(const tString &in asTimer){Prop_MoveLinearTo("piston_move_4","piston_move_4_target",1.0f,1.2f,0.33f,true);Sound_CreateAtEntity("bubble", "Entities_OceanBottom/valve/valve_stuck", "piston_move_4");}
+	
+ 
+ 
+	
+}

@@ -1,0 +1,619 @@
+#include "interfaces/Map_Interface.hps"
+#include "base/Inputhandler_Types.hps"
+
+#include "helpers/helper_map.hps"
+#include "helpers/helper_props.hps"
+#include "helpers/helper_effects.hps"
+#include "helpers/helper_audio.hps"
+#include "helpers/helper_imgui.hps"
+#include "helpers/helper_sequences.hps"
+#include "helpers/helper_game.hps"
+#include "helpers/helper_modules.hps"
+#include "helpers/helper_ai.hps"
+#include "helpers/helper_player.hps"
+
+#include "helper_custom_depth.hps"
+#include "custom_depth/helper_custom_depth_audio.hps"
+
+#include "helper_imgui_station_apps_common.hps"
+#include "helper_imgui_station.hps"
+#include "helper_imgui_station_app_photoviewer.hps"
+#include "helper_imgui_station_app_error.hps"
+#include "helper_imgui_station_app_mail.hps"
+#include "helper_imgui_station_app_audioplayback.hps"
+#include "helper_imgui_station_app_doorlocks.hps"
+#include "helper_imgui_station_app_numpad.hps"
+
+//--------------------------------------------------
+ 
+/*Place any global values here. These must be const variables as they will not be saved*/
+/*This is also the place for enums and classes, but these should be avoided whenever possible*/
+ 
+//--------------------------------------------------
+
+enum eComputerTerminalApp
+{
+	eComputerTerminalApp_MainMenu = -1,
+	eComputerTerminalApp_Airlock,
+	eComputerTerminalApp_Airlock_proceed,
+}
+ 
+class cScrMap : iScrMap
+{
+	////////////////////////////
+	// Set up map environment
+	void Setup()
+	{
+		Effect_Fade_Out(2.0f);
+		Effect_Fade_In(2.0f);	
+	}
+	
+	void PreloadMap(){
+		Map_Preload("03_flooded.hpm");
+		Map_SetPreloadPriority(eWorldStreamPriority_Low);
+	}
+	
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run first time starting map
+	void OnStart()
+	{
+		Player_StartLookAt("LookArea",10.0f,10.0f,10.0f);
+		Map_AddTimer("timer_PlayerStopLookAt",0.75f,"timer_PlayerStopLookAt");
+		
+		Map_AddTimer("timer_OpenElevatorDoor_Inner",2.0f,"timer_OpenElevatorDoor_Inner");
+		
+		Sound_Stop("Sound_Airlock",0.0f);
+		ParticleSystem_SetVisible("Airlock_ParticleSystem_*",false);
+		
+		Map_AddTimer("timer_LampFlickerDelay",0.5f,"timer_LampFlickerDelay");
+		
+		SetupMonsterPathNode();
+		PreloadMap();
+		Music_StopAll(1.0f);
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run when entering map
+	void OnEnter()
+	{	
+		if(Player_ToolIsInInventory("omnitool")==true)
+		{
+			Entity_SetActive("omnitool",false);	
+		}
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// To get when player makes input (mostly used for debug)
+	void OnAction(int alAction, bool abPressed) 
+	{
+		if(abPressed==false) return;
+		
+		if(alAction == eAction_Test1)
+		{
+			Entity_PlaceAtEntity("omnitool", "Player");
+		}
+		
+		if(alAction == eAction_Test2)
+		{
+			
+		}
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// This only used for pure debug purposes when info needs to printed.
+	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
+	{
+		//afY = cLux_DrawDebugText("My Debug value:"+..., afY);
+		return afY;
+	}
+	
+	
+	void SetupMonsterPathNode(){
+		
+		int monster = 1;
+		
+		while( monster <= 61 )
+		{
+			Pathfinder_Track_Add("maintenance_infected", "PathNodeArea_" + monster, 0.0f, 0.0f, "", false);
+
+			monster++;
+		}
+	}
+	
+		cSequenceStatesData mLobbyLampSequence;
+		void SequenceLobbyLamp(const tString &in asTimer)
+		{
+			Sequence_Begin("SequenceLobbyLamp", mLobbyLampSequence);				
+				
+				if (Sequence_DoStepAndWait(1.25)){}
+				
+				if (Sequence_DoStepAndWait(1))
+				{
+					Lamp_SetLit("ceiling_shutter_1",true,true);
+					Lamp_SetLit("ceiling_shutter_3",true,true);	
+				}
+				if (Sequence_DoStepAndWait(1))
+				{
+					Lamp_SetLit("ceiling_shutter_2",true,true);			
+				}
+				if (Sequence_DoStepAndWait(0.5))
+				{
+					Lamp_SetLit("sign_spotlight",true,true);	
+					Lamp_SetFlickerActive("ceiling_shutter_2",false);	
+				}
+				if (Sequence_DoStepAndWait(0.5))
+				{	
+					Lamp_SetFlickerActive("ceiling_shutter_3",false);	
+				}
+				if (Sequence_DoStepAndWait(1))
+				{
+					Lamp_SetLit("ceiling_lamp",true,true);
+					Lamp_SetFlickerActive("ceiling_shutter_1",false);	
+				}
+					if (Sequence_DoStepAndWait(0.5))
+				{
+					Lamp_SetFlickerActive("sign_spotlight",false);	
+					Lamp_SetLit("upsilon_sign_lamp*",true,true);
+				}
+				if (Sequence_DoStepAndWait(1))
+				{
+					Lamp_SetFlickerActive("ceiling_lamp",false);	
+				}
+			Sequence_End();
+		}	
+	
+	void timer_PlayerStopLookAt(const tString &in asTimer)
+	{
+		Player_StopLookAt(0.0f);
+	}
+	
+	void timer_OpenElevatorDoor_Inner(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("Elevatordoor_inner",false,false);
+		Button_SetLocked("panel_elevator", false,true);
+	}
+	
+	void timer_CloseElevatorDoor_Outer(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("Elevatordoor_outer",true,false);
+	}
+	
+	void timer_CloseElevatorDoor_Inner(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("Elevatordoor_inner",true,false);
+	}
+	
+	bool Collide_ShutElevatorDoor(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Map_AddTimer("timer_CloseElevatorDoor_Outer",1.0f,"timer_CloseElevatorDoor_Outer");
+		Map_AddTimer("timer_CloseElevatorDoor_Inner",120.0f,"timer_CloseElevatorDoor_Inner");
+		return false;
+	}
+	
+	bool Collide_LobbyLamp(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SequenceLobbyLamp("");
+		return false;
+	}
+	
+	bool Collide_ShutLargeDoor(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if (SlideDoor_GetOpenAmount("slidedoor_entrance") == 1.0f)
+		{
+			SlideDoor_SetClosed("slidedoor_entrance",true,false);
+		}
+
+		Sound_FadeGlobalVolume(0.85f, 3.0f, eSoundEntryType_WorldAll);
+		Music_Play("01_01_reveal", 0.4f, false, eMusicPrio_BigEvent);
+		return false;
+	}
+		
+		
+	
+	
+	bool Collide_JumpHint(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Hint_ShowHint("Hints","HintJump",true);
+		return true;
+	}
+	
+	bool Collide_PlayerFell(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Player_Teleport("PlayerStartArea_Fell", true);
+		Entity_SetActive("Playerfall_Distortion",true);
+		Map_AddTimer("timer_Playerfall_Distortion",2.0f,"timer_Playerfall_Distortion");
+		return true;
+	}
+	
+	void timer_Playerfall_Distortion(const tString &in asTimer)
+	{
+		Entity_SetActive("Playerfall_Distortion",false);
+	}
+	
+	bool Collide_SoundCreak_1(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Sound_Play("Sound_Creak_1", 0.0f,false);
+		return false;
+	}
+	
+	void timer_LampFlickerDelay(const tString &in asTimer)
+	{
+		Lamp_SetFlickerActive("socket_2_lamp",true);
+	}
+	
+		//-------------omnitool-----------------------------------
+	
+	bool Omnitool_hasFactoryDoor_1_BeenOpened = false;
+	bool Omnitool_hasFactoryDoor_2_BeenOpened = false;
+	
+	bool omnitool_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "omnitool_panel_1" && Omnitool_hasFactoryDoor_1_BeenOpened == false) return true;
+		if (asEntity == "omnitool_panel_2" && Omnitool_hasFactoryDoor_2_BeenOpened == false) return true;		
+		return false;
+	}	
+	
+	bool omnitool_OnUse(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "omnitool_panel_1")
+		{
+			CathTool_UseOnPanel("omnitool","omnitool_panel_1");
+			Omnitool_hasFactoryDoor_1_BeenOpened = true;
+			Entity_SetActive("ToolArea_1",false);
+		}
+		
+		if (asEntity == "omnitool_panel_2")
+		{
+			CathTool_UseOnPanel("omnitool","omnitool_panel_2");
+			Omnitool_hasFactoryDoor_2_BeenOpened = true;
+			Entity_SetActive("ToolArea_2",false);	
+		}
+		return false;		
+	}
+	
+	bool Collide_AirlockEntered(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("exit_medium_vertical_1",true,false);
+		
+		return false;
+	}
+	
+	bool Collide_AirlockExited(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("vertical_1",true,false);
+		Entity_SetActive("SoundscapeArea_8",true);
+		return false;
+	}
+	
+	void timer_OpenAirlockDoor(const tString &in asTimer)
+	{
+		ParticleSystem_Destroy("Airlock_ParticleSystem_*");
+		SlideDoor_SetClosed("vertical_1",false,false);
+		Sound_Stop("Sound_Airlock",0.25f);
+		Entity_SetActive("Sound_Airlock",false);
+		
+		Dialog_Text_Number++;	
+	}
+	
+	bool HasEnemyDoorBeenOpened = false;
+	
+	void slidedoor_area_1_button_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1 && HasEnemyDoorBeenOpened == false)
+		{
+			HasEnemyDoorBeenOpened = true;
+			Entity_SetActive("maintenance_infected",true);
+			Pathfinder_Track_Start("maintenance_infected", true, 1.0f, "");
+			Music_Play("01_02_torturecarl", 0.65f, false, eMusicPrio_BigEvent);
+		}
+	}
+
+	
+	bool Collide_EndLevel(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("slidedoor_puzzleDoor",true,false);
+		Map_AddTimer("timer_RemoveMonster",1.0f,"timer_RemoveMonster");
+		Map_AddTimer("timer_ChangeLevel",3.5f,"timer_ChangeLevel");
+		Music_StopAll(3);
+		return false;
+	}
+	
+	void timer_RemoveMonster(const tString &in asTimer)
+	{
+		Agent_SetAutoDisableWhenOutOfSightActive("maintenance_infected",true,1.0F);
+	}
+	
+	void timer_ChangeLevel(const tString &in asTimer)
+	{
+		Map_ChangeMap("03_flooded.hps","PlayerStartArea_1","","");
+	}
+
+		//-------------omnitool-----------------------------------
+ 
+	 /////////////////////////////////////////
+	 // ==============
+	 // TERMINALS
+	 // ==============
+	 //{//////////////////////////////////////
+
+
+	 
+		 //-------------------------------------------------------
+	 
+		 /*Put any variables that are only used Terminal here.*/
+		 //-------------------------------------------------------
+	bool AirlockUsed = false;
+	int Dialog_Text_Number = 1;
+		 /*Put any functions that are only used Terminal here.*/
+
+	
+	void airlock_terminal_1_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_Airlock");
+		
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		StationGuiBG_Taskbar("upsilon");
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu);
+		bool bBackButton = true;
+		
+		switch(lActiveApp)
+            {
+				
+                case eComputerTerminalApp_MainMenu:
+					StationGui_AddApp("ComputerApp_Airlock_Title",true,eComputerTerminalApp_Airlock);
+					StationGui_MainMenu();
+                    bBackButton = false;
+				break;
+			
+                case eComputerTerminalApp_Airlock:
+					StationGui_LoadingWindow("ComputerApp_Airlock_Title", "ComputerApp_Airlock_Dialog_Title", "ComputerApp_Airlock_Dialog_Text_" + Dialog_Text_Number, 5.0f, false, cVector2f(0.75, 0.25), 1.5f);
+
+					if(AirlockUsed == false){
+						Terminal_SetAllowInteraction("airlock_terminal_1", false);
+						Player_ExitTerminal();
+						Map_AddTimer("timer_OpenAirlockDoor",6.0f,"timer_OpenAirlockDoor");
+						ParticleSystem_SetVisible("Airlock_ParticleSystem_*",true);
+						Sound_Play("Sound_Airlock",0.25f,false);
+						AirlockUsed = true;
+					}
+
+                    bBackButton = false;		
+				break;
+            }
+		
+            StationGui_BackButton(bBackButton);
+	}
+	
+	
+		bool plug_1_inserted = false;
+		bool plug_2_inserted = false;
+	
+		bool knob_1_activated = false;
+		bool knob_2_activated = false;
+		bool knob_3_activated = false;
+		
+		bool prerequisite_Activated = false;
+		bool button_activated = false;
+	
+	void puzzle_knob_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			knob_1_activated = true;
+			Entity_SetInteractionDisabled(asEntity,true);
+			Wheel_SetStuckState(asEntity,1,true);
+		}
+	}
+	
+	void puzzle_knob_2_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			knob_2_activated = true;
+			Entity_SetInteractionDisabled(asEntity,true);
+			Wheel_SetStuckState(asEntity,1,true);
+		}
+	}
+	
+	void puzzle_knob_3_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			knob_3_activated = true;
+			Entity_SetInteractionDisabled(asEntity,true);
+			Wheel_SetStuckState(asEntity,1,true);
+		}
+	}
+	
+	bool OnAttachCable_1(const tString &in asStickyArea, const tString &in asBodyName)
+	{
+		Sound_CreateAtEntity("ConnectDunbat", "Entities_Station/tech/plug/electric_cable_plug", asStickyArea);
+		Prop_SetStaticPhysics("power_cable_1", true);
+		Entity_SetInteractionDisabled("power_cable_1", true);
+		Lamp_SetLit("socket_1_lamp", false, true);
+		plug_1_inserted = true;
+		return true;
+	}
+
+	void OnDetachCable_1(const tString &in asStickyArea, const tString &in asBodyName)
+	{
+		ParticleSystem_CreateAtEntity("DunbatCableSpark", "elec_spark_huge_oneshot.ps", "cable_sticky_1", true);
+		Lamp_SetLit("socket_1_lamp", true, true);
+		plug_1_inserted = false;
+	}
+	
+	bool OnAttachCable_2(const tString &in asStickyArea, const tString &in asBodyName)
+	{
+		Sound_CreateAtEntity("ConnectDunbat", "Entities_Station/tech/plug/electric_cable_plug", asStickyArea);
+		Prop_SetStaticPhysics("power_cable_2", true);
+		Entity_SetInteractionDisabled("power_cable_2", true);
+		Lamp_SetLit("socket_2_lamp", false, true);
+		plug_2_inserted = true;
+		return true;
+	}
+
+	void OnDetachCable_2(const tString &in asStickyArea, const tString &in asBodyName)
+	{
+		ParticleSystem_CreateAtEntity("DunbatCableSpark", "elec_spark_huge_oneshot.ps", "cable_sticky_1", true);
+		Lamp_SetLit("socket_2_lamp", true, true);
+		plug_2_inserted = false;
+	}
+	
+	
+	
+	void puzzle_button_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1 && prerequisite_Activated == true)
+		{
+			button_activated = true;
+			Entity_SetInteractionDisabled(asEntity,true);
+			Button_SetLocked("slidedoor_puzzleDoor_button",false,true);
+			Lamp_SetFlickerActive("puzzle_solved_lamp",false);
+			Sound_CreateAtEntity("puzzle_complete","01_02_upsilon_inside_02/special/fuse/fuse_door_unlock","slidedoor_puzzleDoor",0.0f,false,1.0f);
+			Map_AddTimer("progessionmusic", 1.1f, "progessionmusic");
+			
+		} else if (alState == 1 && prerequisite_Activated == false)
+		{
+			Map_AddTimer("timer_ResetButton",0.5f,"timer_ResetButton");
+		}
+
+	}
+	
+	void progessionmusic (const tString &in asTimer)
+	{
+		Music_Play("01_01_omnitoolpickup", 0.65f, false, eMusicPrio_MinorEvent);
+		Sound_Stop("puzzle_complete",0.0f);
+	}
+	
+	void button_reset_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			knob_1_activated = false;
+			knob_2_activated = false;
+			knob_3_activated = false;
+			Entity_SetInteractionDisabled("puzzle_knob_1",false);
+			Entity_SetInteractionDisabled("puzzle_knob_2",false);
+			Entity_SetInteractionDisabled("puzzle_knob_3",false);
+			Wheel_SetStuckState("puzzle_knob_1",0,true);
+			Wheel_SetStuckState("puzzle_knob_2",0,true); // 0 being not stuck
+			Wheel_SetStuckState("puzzle_knob_3",0,true);
+			Wheel_SetAngle("puzzle_knob_1",-0.0872665,true);
+			Wheel_SetAngle("puzzle_knob_2",-0.0872665,true); // 0 being the angle
+			Wheel_SetAngle("puzzle_knob_3",-0.0872665,true);
+		}
+		
+	}
+	
+	void timer_ResetButton(const tString &in asTimer)
+	{
+		MovingButton_SetSwitchedOn("puzzle_button",false, true);
+	}
+	
+
+	
+	void computer_panel_door_puzzle_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+	
+		ImGui_SetTransCategory("Terminal_Puzzle");
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		StationGuiBG_Taskbar("upsilon");
+		if (StationGui_DrawAndCheckErrors()) return;
+		
+		cImGuiLabelData Plug;
+		cImGuiLabelData Knob;	
+		cImGuiLabelData Status;
+		
+		Plug.mFont.mvSize = cVector2f(70, 70);
+		Knob.mFont.mvSize = cVector2f(70, 70);
+		Status.mFont.mvSize = cVector2f(100, 100);
+		
+		if(plug_1_inserted == true)
+		{
+			ImGui_DoLabelExt("Plug_1_OK", Plug, cVector3f(50, 0, 0));
+		}else{
+			ImGui_DoLabelExt("Plug_1_BAD", Plug, cVector3f(50, 0, 0));
+		}
+		
+		if(plug_2_inserted == true)
+		{
+			ImGui_DoLabelExt("Plug_2_OK", Plug, cVector3f(50, 80, 0));
+		}else{
+			ImGui_DoLabelExt("Plug_2_BAD", Plug, cVector3f(50, 80, 0));
+		}
+		
+		if(knob_1_activated == true)
+		{
+			ImGui_DoLabelExt("Knob_1_OK", Plug, cVector3f(50, 200, 0));
+		}else{
+			ImGui_DoLabelExt("Knob_1_BAD", Plug, cVector3f(50, 200, 0));
+		}
+		
+		if(knob_2_activated == true)
+		{
+			ImGui_DoLabelExt("Knob_2_OK", Knob, cVector3f(50, 280, 0));
+		}else{
+			ImGui_DoLabelExt("Knob_2_BAD", Knob, cVector3f(50, 280, 0));
+		}
+		
+		if(knob_3_activated == true)
+		{
+			ImGui_DoLabelExt("Knob_3_OK", Knob, cVector3f(50, 360, 0));
+			
+		}else{
+			ImGui_DoLabelExt("Knob_3_BAD", Knob, cVector3f(50, 360, 0));
+		}
+		
+		//when both plugs are inserted
+		if(plug_1_inserted == true && plug_2_inserted == true)
+		{
+			Sound_Stop("sound_plug_alarm", 0.25f);
+		}
+		
+		//when all 3 knobs are turned
+		if(knob_1_activated== true && knob_2_activated == true && knob_3_activated == true)
+		{
+			Sound_Stop("sound_knob_alarm", 0.25f);
+		}
+		
+
+		if (plug_1_inserted == true && plug_2_inserted == true && knob_1_activated== true && knob_2_activated == true && knob_3_activated == true)
+		{
+			prerequisite_Activated = true;
+			Lamp_SetLit("puzzle_solved_lamp",true,true);
+			Entity_SetInteractionDisabled("button_reset",true);
+			
+		}else{
+			prerequisite_Activated = false;
+			Lamp_SetLit("puzzle_solved_lamp",false,true);
+			Entity_SetInteractionDisabled("button_reset",false);
+		}
+		
+		if (button_activated == true)
+		{
+			ImGui_DoLabelExt("Status_OK", Status, cVector3f(100, 500, 0));
+
+		}else{
+			ImGui_DoLabelExt("Status_BAD", Status, cVector3f(100, 500, 0));
+		}
+	}
+		 //-------------------------------------------------------
+	 
+		 //} END Terminal *Name Of Terminal*
+	
+	//} END TERMINALS
+	
+}

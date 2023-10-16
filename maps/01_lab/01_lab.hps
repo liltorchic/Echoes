@@ -1,0 +1,2748 @@
+#include "interfaces/Map_Interface.hps"
+#include "interfaces/Map_Interface.hps"
+#include "base/Inputhandler_Types.hps"
+
+#include "helpers/helper_map.hps"
+#include "helpers/helper_props.hps"
+#include "helpers/helper_effects.hps"
+#include "helpers/helper_audio.hps"
+#include "helpers/helper_imgui.hps"
+#include "helpers/helper_sequences.hps"
+#include "helpers/helper_game.hps"
+#include "helpers/helper_modules.hps"
+#include "helpers/helper_ai.hps"
+#include "helpers/helper_player.hps"
+#include "helpers/helper_areas.hps"
+
+#include "helper_custom_depth.hps"
+#include "custom_depth/helper_custom_depth_audio.hps"
+
+#include "helper_imgui_station_apps_common.hps"
+#include "helper_imgui_station.hps"
+#include "helper_imgui_station_app_photoviewer.hps"
+#include "helper_imgui_station_app_error.hps"
+#include "helper_imgui_station_app_mail.hps"
+#include "helper_imgui_station_app_audioplayback.hps"
+#include "helper_imgui_station_app_doorlocks.hps"
+#include "helper_imgui_station_app_numpad.hps"
+
+//--------------------------------------------------
+ 
+/*Place any global values here. These must be const variables as they will not be saved*/
+/*This is also the place for enums and classes, but these should be avoided whenever possible*/
+ 
+//--------------------------------------------------
+ 
+enum eComputerTerminalApp
+{
+	eComputerTerminalApp_MainMenu = -1,
+	eComputerTerminalApp_MainMenu_RedArea = -1,
+	eComputerTerminalApp_MainMenu_LobbyComputer = -1,
+	eComputerTerminalApp_LiftLockdown,
+	eComputerTerminalApp_LiftLockdown_RedArea,
+	eComputerTerminalApp_SecurityLog,
+	
+	eComputerTerminalApp_Lobby_Power,
+	eComputerTerminalApp_Lobby_Confidential,
+	eComputerTerminalApp_Lobby_Emergency,
+	
+	eComputerTerminalApp_FreezerLoading,
+}
+
+
+	
+class cScrMap : iScrMap
+{
+	//--------------------------------------------
+ 
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// ==============
+	// MAIN CALLBACKS
+	// ==============
+	//{///////////////////////////////////////////////////////////////////////////////////////
+ 	////////////////////////////
+	
+		////////////////////////////
+	// To get when player makes input (mostly used for debug)
+	void OnAction(int alAction, bool abPressed) 
+	{
+		if(alAction == eAction_Test1 && abPressed)
+		{
+			restorePower();
+		}
+		if(alAction == eAction_Test2 && abPressed)
+		{
+			PreloadMap();
+		}
+		if(abPressed==false) return;
+	}
+	
+	bool testtriggger = false;
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// This only used for pure debug purposes when info needs to printed.
+	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
+	{
+		afY = cLux_DrawDebugText("DEBUG: is player in area 2: "+ isPlayerinArea2, afY);
+		afY = cLux_DrawDebugText("DEBUG: is player in cave: "+ bIsPlayerInCave, afY);
+		return afY;
+	}
+	
+	// Set up map environment
+	void Setup()
+	{
+		SetupPlayer();
+		SetupMonsterPathNode();
+		SetupLockedDoorStates();
+		SetupLobbyAlarm();
+		alarmClassicStart();
+		setupLobbyRedLamps();
+		SetupMap();
+	}
+	
+	int imagetraideID = 0;
+	
+	void OnStart()
+	{
+		Effect_Fade_Out(0);			
+		cLux_AddDebugMessage("Begin in darkness..");
+		Player_SetJumpDisabled(true);
+		Player_SetMoveSpeedMul(1.0);
+		Player_SetLookSpeedMul(1.0);
+		Player_SetRunSpeedMul(1.0);
+		Player_SetFlashlightDisabled(true);
+		Sound_SetGlobalVolume(0.0f, eSoundEntryType_WorldAll);
+		imagetraideID = Effect_ImageTrail_Start(2.0f,0.0f, -1.0f, 0.0f);
+		PauseMenu_Enabled(false);
+		Player_ShowCrossHairIcons(false);
+			
+			//if we are in debug mode
+		if (cLux_ScriptDebugOn())
+		{
+			cLux_AddDebugMessage("debug on");
+			Sound_SetGlobalVolume(1.0f, eSoundEntryType_WorldAll);
+			Effect_Fade_In(1.0f);	
+			Effect_ImageTrail_FadeOut(imagetraideID, 25.0f);
+			PauseMenu_Enabled(true);
+			Player_ShowCrossHairIcons(false);
+			Player_SetFlashlightDisabled(false);
+			Player_ShowCrossHairIcons(true);	
+			Player_SetJumpDisabled(false);
+			Player_SetMoveSpeedMul(1.0);
+			Player_SetLookSpeedMul(1.0);
+			Player_SetRunSpeedMul(1.0);
+			PhysicsSlideDoor_AutoMoveToState("Tram_door",1);
+		}
+		else
+		{
+			cLux_AddDebugMessage("TramIntroSeq");
+			TramIntroSeq();
+		}
+
+	}
+	
+	void OnEnter()
+	{
+	}
+	
+	void OnLeave()
+	{
+		Player_SetActive(true);
+		Player_ShowCrossHairIcons(true);
+		
+		if(cLux_ScriptDebugOn())
+		{
+			cLux_GetGuiHandler().SetGameHudInputFocus(false);
+		}
+	}
+	
+	
+ 	void PreloadMap()
+	{
+		Map_SetPreloadPriority(eWorldStreamPriority_Low);//
+		Map_Preload("02_under.hpm");
+	}
+	
+	void SetupPlayer()
+	{
+		PlayerHands_SetHandModel_Human();
+		Player_SetFootWear("default");
+		Player_SetFootstepSoundsDisabled(false);
+		Player_SetMoveSpeedMul(0.75f);
+	}
+	
+	void SetupLobbyAlarm()
+	{
+		Light_SetBrightness("Light_alarm_01_B_*",0.0f);
+		Light_SetFlickerActive("Light_alarm_01_A_*",true);	
+		Lamp_SetLit("Lamp_alarm_01_B_*",false,true);
+		Lamp_SetFlickerActive("Lamp_alarm_01_A_*",true);	
+		
+		Map_AddTimer("timer_LobbyAlarmSetup",0.6f,"timer_LobbyAlarmSetup");
+		Map_AddTimer("timer_LobbyAlarmSetup_2",0.55f,"timer_LobbyAlarmSetup_2");
+		Map_AddTimer("timer_LobbyAlarmReset",10.0f,"timer_LobbyAlarmReset");
+		
+		
+	}
+	
+	void timer_LobbyAlarmSetup(const tString &in asTimer)
+	{
+		Light_SetBrightness("Light_alarm_01_B_*",5.0f);
+		Light_SetFlickerActive("Light_alarm_01_B_*",true);	
+		Lamp_SetLit("Lamp_alarm_01_B_*",true,true);
+		Lamp_SetFlickerActive("Lamp_alarm_01_B_*",true);
+	}
+	
+	void timer_LobbyAlarmSetup_2(const tString &in asTimer)
+	{
+		Light_SetBrightness("Light_alarm_02_B_*",0.0f);
+		Light_SetFlickerActive("Light_alarm_02_A_*",true);
+		Lamp_SetLit("Lamp_alarm_02_B_*",false,true);
+		Lamp_SetFlickerActive("Lamp_alarm_02_A_*",true);
+		Map_AddTimer("timer_LobbyAlarmSetup_3",0.1f,"timer_LobbyAlarmSetup_3");
+	}
+	
+	void timer_LobbyAlarmSetup_3(const tString &in asTimer)
+	{
+		Light_SetBrightness("Light_alarm_02_B_*",5.0f);
+		Light_SetFlickerActive("Light_alarm_02_B_*",true);
+		Lamp_SetLit("Lamp_alarm_02_B_*",true,true);
+		Lamp_SetFlickerActive("Lamp_alarm_02_B_*",true);
+	}
+	
+	void timer_LobbyAlarmReset(const tString &in asTimer)
+	{
+		SetupLobbyAlarm();
+	}
+	
+	void alarmClassicStart()
+	{
+		Light_SetFlickerActive("SpotLight_Alarm_flicker_*",true);
+		Lamp_SetFlickerActive("Lamp_Alarm_flicker_*",true);		
+		Map_AddTimer("timer_alarmClassicMid",1.0f,"timer_alarmClassicMid");
+	}
+	
+	void timer_alarmClassicMid(const tString &in asTimer)
+	{
+		Light_SetBrightness("SpotLight_Alarm_flicker_*",0.0f);
+		Lamp_SetLit("Lamp_Alarm_flicker_*",false,true);		
+		Map_AddTimer("timer_alarmClassicLate",1.0f,"timer_alarmClassicLate");
+	}
+	
+	void timer_alarmClassicLate(const tString &in asTimer)
+	{
+		Light_SetBrightness("SpotLight_Alarm_flicker_*",5.0f);
+		Lamp_SetLit("Lamp_Alarm_flicker_*",true,true);		
+		alarmClassicStart();
+	}
+	
+	void setupLobbyRedLamps()
+	{
+		Lamp_SetLit("Lamp_lobby_red_setB*",false,false);
+		Map_AddTimer("timer_LobbyRedLamps",0.75f,"timer_LobbyRedLamps");
+	}
+	
+	void timer_LobbyRedLamps(const tString &in asTimer)
+	{
+		Lamp_SetLit("Lamp_lobby_red_setB*",true,true);	
+	}
+	
+	void timer_LobbbyAlarm(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sfx_LobbbyAlarm", "01_04_transport_station/Special/Train/post_crash/tunnel_alarm", "ceiling_theta_large_19", 0.0f, false, 1.0f);
+		Map_AddTimer("timer_LobbbyAlarm",16.0f,"timer_LobbbyAlarm");
+	}
+	
+	void SetupMap()
+	{
+	//area 1
+		Button_SetSwitchedOn("lightswitch_lab_9",true,true);
+		//Lamp_SetLit("tubelight_lab9_*",true,true);
+		
+		Lamp_SetLit("tubelight_lab7_8",false,false);
+		Lamp_SetLit("ceiling_shutter_large_white_noshutter_2",false,false);
+		//Lamp_SetLit("officeshutter*",false,false);
+		//Lamp_SetLit("officeshutter_1_1",false,true);
+		ParticleSystem_SetActive("ParticleSystem_24",false);
+			
+		Light_FadeTo("powerbox_lightgreen_entity*",cColor(0.0,0.0,0.0,0.0),-1,0.5);
+		Light_SetBrightness("BoxLight_11",0.0f);
+		
+		Billboard_SetVisible("Billboard_107", false);
+		Billboard_SetVisible("Billboard_102", false);
+		Billboard_SetVisible("Billboard_101", false);
+		
+	//area 2
+	
+		Button_SetLocked("LabDoor_*",true,true);
+		Entity_SetActive("window_shatter_state1",true);
+		
+		Light_SetBrightness("SpotLight_computer_redarea_1",0.0f);
+		
+		Billboard_SetVisible("Billboard_454", false);
+		Billboard_SetVisible("Billboard_455", false);
+		
+	//elevator room
+		StickyArea_AttachBody("StickyArea_ElevatorChip","elevatorchip_broken_Body_chip");
+		
+	//checkpoint
+		ParticleSystem_SetActive("ParticleSystem_checkpoint_*",false);
+		ParticleSystem_SetActive("ParticleSystem_checkpointb_*",false);
+		FogArea_SetVisible("FogArea_checkpoint",false);
+		
+	//global
+		Map_AddTimer("timer_StartPerMapShake",10.0f,"timer_StartPerMapShake");
+	}
+	
+	void timer_StartPerMapShake(const tString &in asTimer)
+	{
+		shakeMapPer();
+	}
+	
+	void shakeMapPer()
+	{
+		cLux_AddDebugMessage("debug: periodic shake");
+		Map_AddTimer("timer_StartPerMapShake",cMath_RandRectf(45.0f,360.0f),"timer_StartPerMapShake");
+		Map_AddTimer("timer_shake_sfx",0.1f,"timer_shake_sfx");
+		Effect_Shake_Start(0.05, 0.05, 0.4, 2.5f);
+	}
+	
+	void timer_shake_sfx(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_fx__periodic_map_shake", "level_amb_shared_interior/amb/sfx/metal/resonant_rattle", "player", 0.0f, false, 1.0f);
+	}
+ 
+
+	void SetupLockedDoorStates()
+	{
+		SlideDoor_SetOpenableByAgent("LabDoor_1", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_2", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_3", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_4", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_5", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_6", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_7", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_7", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_8", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_9", false);
+		SlideDoor_SetOpenableByAgent("LabDoor_10", false);
+	}
+	
+	void UpdateLockedDoorStates()
+	{
+		SlideDoor_SetOpenableByAgent("LabDoor_1", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_2", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_3", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_4", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_5", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_6", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_7", true);
+		SlideDoor_SetOpenableByAgent("LabDoor_8", true);
+		//No #9 because its handled by omnitool
+		SlideDoor_SetOpenableByAgent("LabDoor_10", true);
+	}
+	
+	
+	void SetupMonsterPathNode()
+	{
+		for(int a = 1; a <= 221; a++)
+		{
+			Pathfinder_Track_Add("puppet_1_1", "PathNodeArea_" + a, 0.0f, 0.5f, "", false);
+		}
+		
+		for(int b = 1; b <= 460; b++)
+		{
+			Pathfinder_Track_Add("puppet_2_1", "PathNodeArea_Red_" + b, 0.0f, 0.5f, "", false);
+			Pathfinder_Track_Add("puppet_2_2", "PathNodeArea_Red_" + b, 0.0f, 0.5f, "", false);
+		}
+		
+		for(int c = 1; c <= 12; c++)
+		{
+			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_Cargo_robot_" + c, 0.0f, 0.5f, "", false);
+			cLux_AddDebugMessage("PathNode_Cargo_robot_" + c);
+		}
+		AddMonstersToWorld();
+		UpdateMonsterPathNode();
+	}
+	
+	void AddMonstersToWorld()
+	{
+		Pathfinder_Track_Start("puppet_1_1", true, 1.0f, "");
+		Pathfinder_Track_Start("maintenance_infected_1", true, 1.0f, "");
+		
+		if(isPlayerinArea2 == true)
+		{
+			Map_AddTimer("timer_RemoveMonsterLight",2.5f,"timer_RemoveMonsterLight");
+			Entity_SetActive("puppet_2_2", true);
+			Pathfinder_Track_Start("puppet_2_1", true, 1.0f, "");
+			Pathfinder_Track_Start("puppet_2_2", true, 1.0f, "");
+			Pathfinder_MoveToNode("puppet_2_2","PathNodeArea_Red_429","",0.0f,false,"");	
+		}
+	}
+	
+	void timer_RemoveMonsterLight(const tString &in asTimer)
+	{
+		Light_SetVisible("Spot_monsterReveal",false);
+	}
+	
+	void UpdateMonsterPathNode(){
+		
+		if(hasChipBeenAquired == true){
+			Entity_SetActive("puppet_2_1", true);
+		}
+	}
+///setup end
+//////////////////////////////////
+
+	void TramIntroSeq()
+	{
+		SeqIntro("");
+	}
+	
+	
+	
+	bool quicksave(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Game_AutoSave();
+		cLux_AddDebugMessage("quicksaving");
+		return false;
+	}
+
+	//kill trigger for elevator
+	bool TriggerArea_elv_death(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Map_AddTimer("timer_elevatorDeath_Kill",1.2f,"timer_elevatorDeath_Kill");
+		Map_FadeOut(1.0f);
+		return false;
+	}
+	
+	void timer_elevatorDeath_Kill(const tString &in asTimer)
+	{
+		Sound_PlayGui("Player/UI/death_hit", 1.0f, eSoundEntryType_Gui);
+		Player_GiveDamage(1, 0, eDamageType_None, "");
+	}
+	
+	void TriggerArea_lookdown(const tString &in asEntity, int alState)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "01_02_upsilon_inside_02/sfx/medium_room/tremor", "player", 0.0f, false, 1.0f);
+		Effect_Shake_Start(0.09, 0.09, 0.16, 2.2f);
+		Map_AddTimer("timer_elevatorshakeSfx",2.2f,"timer_elevatorshakeSfx");
+		Map_AddTimer("timer_elevatorshakeSfx2",4.0f,"timer_elevatorshakeSfx2");
+		Map_AddTimer("timer_elevatorshakeSfx3",6.0f,"timer_elevatorshakeSfx3");
+	}
+	
+	void timer_elevatorshakeSfx(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "level_amb_shared_interior/amb/sfx/dust/medium", "player", 0.0f, false, 1.0f);
+	}
+	
+	void timer_elevatorshakeSfx2(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "level_amb_shared_interior/amb/sfx/dust/tiny_dust", "player", 0.0f, false, 1.0f);
+	}
+
+	void timer_elevatorshakeSfx3(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "level_amb_shared_interior/amb/sfx/metal/big_space/groan", "player", 0.0f, false, 1.0f);
+	}
+	
+	bool ladderCheck(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)//enter
+		{
+			Entity_SetActive("TriggerArea_lookup", true);
+		}
+		else if(alState == -1)//exit
+		{
+			Entity_SetActive("TriggerArea_lookup", false);
+			Player_StartLookAt("ElevatorExit_look",4.25f,1.5f,3.0f);
+			Map_AddTimer("timer_elevatorexitlook",1.25f,"timer_elevatorexitlook");
+			
+		}
+		return true;
+	}
+	
+	void timer_elevatorexitlook(const tString &in asTimer)
+	{
+		Player_StopLookAt(0.25f);
+	}
+	
+	void TriggerArea_lookup(const tString &in asEntity, int alState)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "01_02_upsilon_inside_02/sfx/medium_room/tremor", "player", 0.0f, false, 1.0f);
+		Effect_Shake_Start(0.09, 0.09, 0.16, 2.6f);
+		Map_AddTimer("timer_elevatorshakeup",2.0f,"timer_elevatorshakeup");
+	}
+	
+	void timer_elevatorshakeup(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "level_amb_shared_interior/amb/sfx/dust/medium", "player", 0.0f, false, 1.0f);
+	}
+	
+	bool ladderdust(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Sound_CreateAtEntity("sound_tram_door_move", "level_amb_shared_interior/amb/sfx/metal/catwalk_dust", "player", 0.0f, false, 1.0f);
+		return false;
+	}
+	
+	bool ladder_setOff(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Entity_SetActive("InteractAuxArea_3", false);
+		return false;
+	}
+
+
+	void omnitool_panel_office_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Button_SetLocked("OfficeEnteranceDoor*",false,true);
+			Entity_SetActive("OmnitoolArea_1", false);
+		}
+	}
+	
+	bool bIsPlayerInCave = false;
+	bool TriggerArea_cave(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)//enter
+		{
+			bIsPlayerInCave = true;
+			Billboard_SetVisible("Billboard_107", true);
+			Billboard_SetVisible("Billboard_102", true);
+			Billboard_SetVisible("Billboard_101", true);
+		}
+		else if (alState == -1)//leave
+		{
+			Billboard_SetVisible("Billboard_107", false);
+			Billboard_SetVisible("Billboard_102", false);
+			Billboard_SetVisible("Billboard_101", false);
+			
+			bIsPlayerInCave = false;
+		}
+
+		return true;
+	}
+
+ 
+	//-------------------------------------------------------
+ 
+	//} END MAIN CALLBACKS
+ 
+ 
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// ==============
+	// MAIN FUNCTIONS
+	// ==============
+	//{///////////////////////////////////////////////////////////////////////////////////////
+ 
+	//-------------------------------------------------------
+ 
+	/*Put any variables that are used in more than one scene here.*/
+	
+	bool bEnteredLab_1 = false;
+	bool bPickedUpChipLab_2 = false;
+	bool bPickedUpAcid = false;
+	bool bSkipIntoSeq = false;
+	bool bIsEnemyActiveLab_1 = false;
+	bool bIsEnemySpawnedLab_1 = false;
+	//-------------------------------------------------------
+
+	//	AIRLOCK	AIRLOCK	AIRLOCK	AIRLOCK
+	bool bIsOpenAirlock_1 = false;
+	bool bIsOpenAirlock_2 = false;
+ 
+	/*Put any functions that are used in more than one scene here.*/
+	
+	
+	// AIRLOCK	AIRLOCK	AIRLOCK	AIRLOCK
+	////////////////////////////
+	// Opens airlock 1
+
+	
+
+	bool Airlock1(const tString &in asParent, const tString &in asChild, int alState)
+	{	
+		if(alState == 1)
+		{
+			if(bIsOpenAirlock_1 == false)
+			{
+				bEnteredLab_1 = true;
+				SlideDoor_SetClosed("airlock_1",true,false);
+				Entity_SetActive("airlock_blockbox_1",true);
+				
+				Map_AddTimer("timer_OpenAirlock1",8.5f,"timer_OpenAirlock1");
+				
+				Map_AddTimer("timer_AirLock1Scan",1.35f,"timer_AirLock1Scan");
+				
+				Map_AddTimer("timer_AirLock1SoundEnd",6.75f,"timer_AirLock1SoundEnd");	
+			}
+		
+			if(bIsOpenAirlock_1 == true)
+			{
+				SlideDoor_SetClosed("airlock_2",true,false);
+				Entity_SetActive("airlock_blockbox_2",true);
+
+				Music_Stop(1.5f,eMusicPrio_SceneAmb);
+				Map_AddTimer("timer_CloseAirlock1",8.5f,"timer_CloseAirlock1");
+			
+				Map_AddTimer("timer_AirLock1Scan",1.35f,"timer_AirLock1Scan");
+				
+				Map_AddTimer("timer_AirLock1SoundEnd",6.75f,"timer_AirLock1SoundEnd");
+			}
+		}
+		return true;
+	}
+	
+	void timer_OpenAirlock1(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("airlock_2",false,false);
+		Entity_SetActive("airlock_blockbox_2",false);
+
+		bIsOpenAirlock_1 = true;
+		
+		if(bEnteredLab_1 == true)
+		{
+			Music_Play("01_04_discoveringamy",0.5f, false, eMusicPrio_BigEvent);
+			Map_AddTimer("timer_lab1music",5.0f,"timer_lab1music");
+		}
+	}
+	
+	void timer_lab1music(const tString &in asTimer)
+	{
+		Music_Stop(0.5f,eMusicPrio_BigEvent);
+		Music_FadeVolumeMul(2.0f,0.0f);
+		Music_Play("02_01_exploration",0.5f, true, eMusicPrio_SceneAmb);
+	}
+		
+	void timer_CloseAirlock1(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("airlock_1",false,false);
+		Entity_SetActive("airlock_blockbox_1",false);
+
+		bIsOpenAirlock_1 = false;
+	}
+	
+	void timer_AirLock1Scan(const tString &in asTimer)
+	{
+		Lamp_SetLit("airlock_scanner_*",true,true);
+		Map_AddTimer("timer_AirLock1ScanOff",6.75f,"timer_AirLock1ScanOff");
+		
+		Prop_MoveLinearTo("airlock_scanner_1","airlock_scanner_1_end",1.0f,1.0f,0.1f,true);
+		Prop_MoveLinearTo("airlock_scanner_2","airlock_scanner_2_end",1.0f,1.0f,0.1f,true);
+		
+		Map_AddTimer("timer_Airlock1ScannerReset",3.5f,"timer_Airlock1ScannerReset");
+	}
+	
+	void timer_Airlock1ScannerReset(const tString &in asTimer)
+	{
+		Prop_MoveLinearTo("airlock_scanner_1","airlock_scanner_1_begin",1.0f,1.0f,0.1f,true);
+		Prop_MoveLinearTo("airlock_scanner_2","airlock_scanner_2_begin",1.0f,1.0f,0.1f,true);
+	}
+	
+	void timer_AirLock1ScanOff(const tString &in asTimer)
+	{
+		Lamp_SetLit("airlock_scanner_*",false,false);
+	}
+	
+	void timer_AirLock1SoundEnd(const tString &in asTimer)
+	{
+		Sound_Stop("",0.0f);
+		Entity_SetActive("",false);
+	}
+	
+	bool TriggerArea_airlock1_closeBehind(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("airlock_2",true,false);
+		Entity_SetActive("airlock_blockbox_2",true);
+		Entity_SetActive("airlock_blockbox_2",true);
+		return false;
+	}
+
+	////////////////////////////
+	// Opens airlock 2
+	bool Airlock2(const tString &in asParent, const tString &in asChild, int alState)
+	{	
+		if(alState == 1){
+			
+				if(bIsOpenAirlock_2 == false)
+				{
+					SlideDoor_SetClosed("airlock2_1",true,false);
+					Entity_SetActive("airlock2_blockbox_1",true);
+				
+					Map_AddTimer("timer_OpenAirlock2",8.5f,"timer_OpenAirlock2");
+				
+					Map_AddTimer("timer_AirLock2Scan",1.35f,"timer_AirLock2Scan");
+				
+					Map_AddTimer("timer_AirLock2SoundEnd",6.75f,"timer_AirLock2SoundEnd");
+					
+				}
+		
+				if(bIsOpenAirlock_2 == true)
+				{
+					SlideDoor_SetClosed("airlock2_2",true,false);
+					Entity_SetActive("airlock2_blockbox_2",true);
+
+					Music_Stop(1.5f,eMusicPrio_SceneAmb);
+					Map_AddTimer("timer_CloseAirlock2",8.5f,"timer_CloseAirlock2");
+			
+					Map_AddTimer("timer_AirLock2Scan",1.35f,"timer_AirLock2Scan");
+				
+					Map_AddTimer("timer_AirLock2SoundEnd",6.75f,"timer_AirLock2SoundEnd");
+				}
+		}
+		return true;
+	}
+	
+	void timer_OpenAirlock2(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("airlock2_2",false,false);
+		Entity_SetActive("airlock2_blockbox_2",false);
+
+		bIsOpenAirlock_2 = true;
+	}
+		
+	void timer_CloseAirlock2(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("airlock2_1",false,false);
+		Entity_SetActive("airlock2_blockbox_1",false);
+
+		bIsOpenAirlock_2 = false;
+	}
+	
+	void timer_AirLock2Scan(const tString &in asTimer)
+	{
+		Lamp_SetLit("airlock2_scanner_*",true,true);
+		Map_AddTimer("timer_AirLock2ScanOff",6.75f,"timer_AirLock2ScanOff");
+		
+		Prop_MoveLinearTo("airlock2_scanner_1","airlock2_scanner_1_end",1.0f,1.0f,0.1f,true);
+		Prop_MoveLinearTo("airlock2_scanner_2","airlock2_scanner_2_end",1.0f,1.0f,0.1f,true);
+		
+		Map_AddTimer("timer_Airlock2ScannerReset",3.5f,"timer_Airlock2ScannerReset");
+	}
+	
+	void timer_Airlock2ScannerReset(const tString &in asTimer)
+	{
+		Prop_MoveLinearTo("airlock2_scanner_1","airlock2_scanner_1_begin",1.0f,1.0f,0.1f,true);
+		Prop_MoveLinearTo("airlock2_scanner_2","airlock2_scanner_2_begin",1.0f,1.0f,0.1f,true);
+	}
+	
+	void timer_AirLock2ScanOff(const tString &in asTimer)
+	{
+		Lamp_SetLit("airlock2_scanner_*",false,false);
+	}
+	
+	void timer_AirLock2SoundEnd(const tString &in asTimer)
+	{
+		//Sound_Stop("",0.0f);
+		//Entity_SetActive("",false);
+	}
+	
+	/////////////airlock end
+	
+	
+	bool lightscare_1(const tString &in asParent, const tString &in asChild, int alState)
+	{
+	
+		Entity_SetActive("Sound_flickerlight",true);
+		Sound_Play("Sound_flickerlight",0.0f,false);
+		Lamp_SetLit("spot_flickerscare",false,false);
+		ParticleSystem_CreateAtEntity("elec_spark_medium_bright_fast_oneshot","elec_spark_medium_bright_fast_oneshot.ps","flickerscare_particle",false);
+		//ParticleSystem_SetActive("ParticleSystem_24",true);
+		return false;
+	}
+	
+	void wau_flower_1_Callback(const tString &in asEntity)
+	{
+		Map_AddTimer("timer_WauPowerDraw",1.75f,"timer_WauPowerDraw");
+	}
+	
+	void timer_WauPowerDraw(const tString &in asTimer)
+	{
+		Lamp_SetLit("panel_wau_1",false,true);
+		Lamp_SetLit("panel_wau_2",false,true);
+		Lamp_SetLit("panel_wau_3",false,true);
+		Lamp_SetLit("panel_wau_4",false,true);
+		Lamp_SetLit("panel_wau_5",false,true);
+				
+		Entity_SetActive("sound_wau*",false);
+		Entity_SetActive("Sound_1",true);
+		Sound_Play("Sound_1",0.0f,false);
+	}
+	
+	void wau_flower_2_Callback(const tString &in asEntity)
+	{
+		Map_AddTimer("timer_WauPowerDraw2",1.75f,"timer_WauPowerDraw2");
+	}
+	
+	
+	void timer_WauPowerDraw2(const tString &in asTimer)
+	{
+		MovingButton_SetLocked("button_round_small_4",true,true);
+		Lamp_SetLit("tablelamp_1",false,true);
+				
+		Entity_SetActive("Sound_3",true);
+		Sound_Play("Sound_3",0.0f,false);
+	}
+	
+	void wau_flower_3_Callback(const tString &in asEntity)
+	{
+		Map_AddTimer("timer_WauPowerDraw_3",1.75f,"timer_WauPowerDraw_3");
+	}
+	
+	void timer_WauPowerDraw_3(const tString &in asTimer)
+	{
+		Lamp_SetLit("theta_wall_small_25",false,true);
+		Lamp_SetLit("theta_wall_small_23",false,true);
+		Lamp_SetLit("ceiling_theta_large_12",false,true);		
+		Lamp_SetLit("lamp_roof_small_red_48",false,true);
+		Lamp_SetFlickerActive("ceiling_theta_large_10",true);		
+	}
+
+	//--//--//--//Lab 2//--//--//--// V
+	
+	
+	void UnlockLabDoors()
+	{
+		Button_SetLocked("LabDoor_*",false,false);
+		Button_SetLocked("ChemStorage_Panel",false,false);
+		Terminal_SetAllowInteraction("monitor_RedArea_Lore",true);
+		Terminal_SetGuiActive("monitor_RedArea_Lore",true,0.1f);
+		Light_SetBrightness("SpotLight_computer_redarea_1",1.0f);
+	}
+	
+	int mlWindowBreaks = 0;
+	void OnBreakWindow(const tString &in asEntity)
+	{
+		++mlWindowBreaks;
+		cLux_AddDebugMessage("breaks : " + mlWindowBreaks);
+		if (mlWindowBreaks == 1)
+		{
+			
+			Entity_SetActive("window_shatter_state1",false);
+			Entity_SetActive("window_shatter_state2_indestructable",true);
+			
+			ParticleSystem_CreateAtEntity("01_01_break_window_damaged","01_01_break_window_damaged.ps","WindowCrackEffectArea",false);
+			
+			//DebugMyParticle("01_01_break_window_damaged", "window_shatter_state2_indestructable");
+			
+			Map_AddTimer("TimerSwapWindow",0.75f,"TimerSwapWindow");
+			Sound_CreateAtEntity("WindowCrack", "01_01_upsilon_awake/sfx/window_smash/glass_crack", "WindowSoundSource");
+		}
+		
+		if (mlWindowBreaks == 2)
+		{
+			Entity_SetActive("window_shatter_state2",false);
+			Entity_SetActive("window_shatter_state3",true);
+			ParticleSystem_CreateAtEntity("01_01_break_window","01_01_break_window.ps","WindowCrackEffectArea",false);
+			Sound_CreateAtEntity("WindowCrack", "01_01_upsilon_awake/sfx/window_smash/glass_smash", "WindowSoundSource");
+			Pathfinder_MoveToNode("puppet_2_2","PathNodeArea_Red_179","",0.0f,false,"");
+		}
+	}
+	
+	//--------------------------------------------------------
+	
+	void TimerSwapWindow(const tString &in asTimer)
+	{
+		Entity_SetActive("window_shatter_state2_indestructable",false);
+		Entity_SetActive("window_shatter_state2",true);
+		
+	}
+	
+	//--//--//--//Lab 2//--//--//--// ^
+	//monster logic
+	
+	
+	
+	bool MonsterSpawn(const tString &in asParent, const tString &in asChild, int alState)
+	{
+	
+		if(bIsEnemyActiveLab_1 == false && bIsEnemySpawnedLab_1 == true)
+		{
+			Entity_SetActive("puppet_1_1",true);
+			Pathfinder_Track_Start("puppet_1_1", true, 1.0f, "");
+			bIsEnemyActiveLab_1 = true;
+		}
+		return true;
+	}
+	
+	bool MonsterSpawnEnd(const tString &in asParent, const tString &in asChild, int alState)
+	{
+	
+		if(bIsEnemyActiveLab_1 == true && bIsEnemySpawnedLab_1 == true)
+		{
+			Map_AddTimer("timer_MonsterClear",20.0f,"timer_MonsterClear");
+			Pathfinder_MoveToNode("puppet_1_1","PathNodeArea_73","",0.0f,false,"");
+			Music_Stop(3.5f,eMusicPrio_AgentAlert);
+			Music_Stop(3.5f,eMusicPrio_AgentHunt);
+			bIsEnemyActiveLab_1 = false;
+		}
+		return true;
+	}
+	
+	void timer_MonsterClear(const tString &in asTimer)
+	{
+		Agent_SetAutoDisableWhenOutOfSightActive("puppet_1_1",true,1.0F);
+	}
+
+	bool bFreezerChipInserted = false;
+	bool bFreezerChipInteracted = false;
+	
+	bool door_chip_item_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "InteractAuxArea_freezer" && bFreezerChipInserted == false) return true;
+		return false;
+	}	
+		
+	bool door_chip_item_OnUse(const tString &in asTool, const tString &in asEntity)
+	{
+		Player_RemoveTool("door_chip_item");
+		bFreezerChipInteracted = true;
+		Entity_SetActive("freezer_chip_inserted",true);
+		Sound_CreateAtEntity("freezer_chip_inserted", "01_01_upsilon_awake/sfx/omnitool/chip_pickup", "freezer_chip_inserted", 0.0f, false, 1.0f);
+		Map_AddTimer("timer_slidefreezerchip",1.0f,"TimerSlideInFreezerChip");
+		return false;
+	}
+	
+	void TimerSlideInFreezerChip(const tString &in asTimer)
+	{
+		Prop_MoveLinearTo("freezer_chip_inserted","freezer_chip_inserted_target",0.1f,2.0f,0.01f,true,"OnFreezerChipInserted");
+		Sound_CreateAtEntity("freezer_chip_moving", "01_01_upsilon_awake/sfx/omnitool/chip_insert", "freezer_chip_inserted", 0.0f, false, 1.0f);
+	}
+	
+	void OnFreezerChipInserted(const tString& in asPropName)
+	{
+		Sound_Stop("freezer_chip_moving",0.1f);
+		Sound_CreateAtEntity("freezer_terminal_loading", "level_amb_shared_machines/tech/HDD/underload_loop", "computer_panel_freezer", 0.0f, false, 1.0f);
+		Entity_SetActive("freezer_lamp_red_5",false);
+		Entity_SetActive("freezer_lamp_red_4",true);
+		cLux_AddDebugMessage("Freezer Chip Inserted!");
+		bFreezerChipInserted = true;
+	}
+	
+	bool isPlayerInsideFreezerArea = false; //SlideDoor_SetOpenableByAgent("LabDoor_8", false);
+	bool sFreezerDoorOpen = false;
+	//1=enter -1=leave
+	bool TriggerArea_FreeezerDoors(const tString &in asParent, const tString &in asChild, int alState)
+	{	
+		//enter
+		if(alState == 1)
+		{
+			isPlayerInsideFreezerArea = true;
+			sFreezerDoorOpen = true;
+			SlideDoor_SetClosed("glassdoor_freezer_*",false,false);
+		}
+		
+		//exit
+		if(alState == -1)
+		{
+			isPlayerInsideFreezerArea = false;
+			Map_AddTimer("timer_closeFreezerDoors",5.0f,"timer_closeFreezerDoors");
+		}
+		return true;
+	}
+	
+	void timer_closeFreezerDoors(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("glassdoor_freezer_*",true,false);
+		sFreezerDoorOpen = false;
+	}
+	
+	//picked up
+	void door_chip_item_OnPlayerInteract(const tString &in asEntity)
+	{
+		proxy_room();	
+		Map_AddTimer("timer_monsterScareSound",0.55f,"timer_monsterScareSound");
+	}
+	
+	void fBreakLab1LabDoor()
+	{
+		Map_AddTimer("timer_breaklab1door",0.76f,"timer_breaklab1door");
+		SlideDoor_SetOpenableByAgent("lab_3",false);
+	}
+	
+	void timer_breaklab1door(const tString &in asTimer)
+	{
+		Button_SetLocked("lab_3_*",true,true);
+		SlideDoor_SetClosed("lab_3",true,false);
+		Sound_CreateAtEntity("lab_3_door_malfunction", "02_05_theta/sweeteners/light_flicker_event/die", "lab_3", 0.0f, false, 1.0f);
+	}
+	
+	/////////////////////////
+	////Fluid Logic
+	bool Fluid_HasBeenUsed = false;
+	
+	bool tracer_fluid_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "mindcoral_Dissolve" && Fluid_HasBeenUsed == false) return true;
+		return false;
+	}
+
+	bool tracer_fluid_OnUse(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "mindcoral_Dissolve")
+		{
+			Fluid_HasBeenUsed = true;
+			
+			Entity_SetActive("tracer_fluid_world", true); //Creates bottle prop
+			
+			Entity_SetActive("ToolArea_tracer", false); //removes toolarea
+			
+			Map_AddTimer("timer_RemoveBottle",1.5f,"timer_RemoveBottle"); //add timer for removing the bottle
+			Map_AddTimer("timer_DissolveMass",2.0f,"timer_DissolveMass"); //add timer for removing the mass
+			
+			Player_RemoveTool("Tracer_Fluid"); //removes tool fromm inventory
+			
+			ParticleSystem_CreateAtEntity("mind_coral_goo_splash_small_continuous","mind_coral_goo_splash_small_continuous.ps","Particle_goopour",false); //creates particle effect
+			
+			Entity_SetActive("Sound_pour",true); //creates sound entity
+			Sound_Play("Sound_pour",0.0f,false); //plays sound
+			
+			Billboard_SetVisible("Billboard_454", true);
+			Billboard_SetVisible("Billboard_455", true);
+			
+			//PreloadMap(); // begin preloading the next map 
+		}
+		
+		return false;		
+	}
+	
+	void DEV_MindcoralDisolve()
+	{
+		Fluid_HasBeenUsed = true;
+			
+		Entity_SetActive("tracer_fluid_world", true); //Creates bottle prop
+			
+		Entity_SetActive("ToolArea_tracer", false); //removes toolarea
+			
+		Map_AddTimer("timer_RemoveBottle",1.5f,"timer_RemoveBottle"); //add timer for removing the bottle
+		Map_AddTimer("timer_DissolveMass",2.0f,"timer_DissolveMass"); //add timer for removing the mass
+			
+		Player_RemoveTool("Tracer_Fluid"); //removes tool fromm inventory
+			
+		ParticleSystem_CreateAtEntity("mind_coral_goo_splash_small_continuous","mind_coral_goo_splash_small_continuous.ps","Particle_goopour",false); //creates particle effect
+			
+		Entity_SetActive("Sound_pour",true); //creates sound entity
+		Sound_Play("Sound_pour",0.0f,false); //plays sound
+			
+		Billboard_SetVisible("Billboard_454", true);
+		Billboard_SetVisible("Billboard_455", true);
+	}
+	
+	void timer_RemoveBottle(const tString &in asTimer)
+	{
+		Entity_SetActive("tracer_fluid_world", false);
+
+		Billboard_SetVisible("Billboard_454", false);
+		Billboard_SetVisible("Billboard_455", false);
+		
+		ParticleSystem_Destroy("mind_coral_goo_splash_small_continuous");
+		Sound_Stop("Sound_pour",0.1f);
+	}
+	
+	void timer_DissolveMass(const tString &in asTimer)
+	{
+		Entity_SetActive("mindcoral_Dissolve", false);
+		
+		Entity_SetInteractionDisabled("elevator_Chip",false);
+		Tool_SetHighlightActive("elevator_Chip",true);
+	}
+	
+	void Tracer_Fluid_OnPlayerInteract(const tString &in asEntity)
+	{
+		Music_PlayExt("02_05_brandonsapartment",false,1.85f,1.0f,0.0f,0.0f,eMusicPrio_BigEvent, false);
+		Light_SetBrightness("PointLight_492",0.0f);
+	}
+	
+	bool hasChipBeenAquired = false;
+	void elevator_Chip_OnPlayerInteract(const tString &in asEntity)
+	{
+		Entity_SetActive("puppet_1_1", false);
+		
+		Map_AddTimer("timer_SpawnEnemy",0.75f,"timer_SpawnEnemy");
+		
+		SlideDoor_SetOpenAmount("slidedoor_theta_small_2", 1.0f,true);
+		
+		hasChipBeenAquired = true;
+		
+		Music_PlayExt("03_02_body",false,1.85f,1.0f,0.0f,0.0f,eMusicPrio_BigEvent, false);
+		
+		PreloadMap();
+	}
+	
+	void timer_SpawnEnemy(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("slidedoor_theta_small_2", true, false);
+		
+		Sound_Play("monster_announce",1.0f,false);
+		
+		Entity_SetActive("DistortionArea_1", true);
+		Map_AddTimer("timer_Distortion",1.75f,"timer_Distortion");
+		
+		Pathfinder_Track_Start("puppet_2_1", true, 1.0f, "");
+		
+		UpdateMonsterPathNode();
+		
+		Player_StartLookAt("puppet_2_1",4.25f,1.5f,3.0f);
+		Map_AddTimer("chip_stoplook",0.5f,"chip_stoplook");
+		Emotion_PlayEventBreath("01_01_upsilon_awake/sfx/wake_up/nervous", 1);
+	}
+	
+	void timer_Distortion(const tString &in asTimer)
+	{
+		Entity_SetActive("DistortionArea_1", false);
+	}
+	
+	void chip_stoplook(const tString &in asTimer)
+	{
+		Player_StopLookAt(0.5f);
+	}
+	
+	
+	////////////////////////
+	//// Omnitool Logic
+	
+	bool bOmnitool_hasFreezerBeenOpened = false;
+	bool bOmnitool_hasChemStorageBeenOpened = false;
+	bool bOmnitool_hasOfficeOpened = false;
+	bool bOmnitool_haslab1Exit = false;
+	
+	bool omnitool_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "ChemStorage_Panel" && bOmnitool_hasChemStorageBeenOpened == false) return true;
+		if (asEntity == "omnitool_panel_office" && bOmnitool_hasOfficeOpened == false) return true;
+		if (asEntity == "omnitool_panel_lab1_exit" && bOmnitool_haslab1Exit == false) return true;
+			
+		return false;
+	}	
+	
+
+	bool omnitool_OnUse(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "omnitool_panel_office")
+		{
+			CathTool_UseOnPanel("omnitool","omnitool_panel_office");
+			bOmnitool_hasOfficeOpened = true;
+		}
+		
+		if (asEntity == "ChemStorage_Panel" && RedAreaLockdownLifted == true) //sucesfull
+		{
+			CathTool_UseOnPanel("omnitool","ChemStorage_Panel");
+			bOmnitool_hasChemStorageBeenOpened = true;
+			Entity_SetActive("ChemStorage_Panel_Area", false);
+			SlideDoor_SetOpenableByAgent("LabDoor_9", true);
+		}
+		
+		if (asEntity == "ChemStorage_Panel" && RedAreaLockdownLifted == false)
+		{
+			CathTool_UseOnPanel("omnitool","ChemStorage_Panel");
+		}
+		
+		if (asEntity == "omnitool_panel_lab1_exit" && bOmnitool_haslab1Exit == false) 
+		{
+			CathTool_UseOnPanel("omnitool","omnitool_panel_lab1_exit");
+			
+			Button_SetLocked("airlock_panel_1",true,true);
+			bOmnitool_haslab1Exit = true;
+		}
+		
+		return false;		
+	}
+	
+	void omnitool_panel_lab1_exit_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			SlideDoor_SetClosed("airlock_2",false,false);
+			Entity_SetActive("airlock_blockbox_2",false);
+			Entity_SetActive("OmnitoolArea_3", false);
+			Entity_SetActive("TriggerArea_airlock1_closeFinal", true);
+		}
+	
+	}
+	
+	bool TriggerArea_airlock1_closeFinal(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("airlock_1",true,false);
+		Entity_SetActive("airlock_blockbox_1",true);
+		return false;
+	}
+	
+	
+	//scares
+	
+	bool bScareDoorProxy = false;
+	
+	void lab_2_2_OnPlayerInteract(const tString &in asEntity)
+	{
+		if(bScareDoorProxy == false){
+			bScareDoorProxy = true;
+			Map_AddTimer("timer_bScareDoorProxy",0.76f,"timer_bScareDoorProxy");
+		}
+	}
+	
+	void timer_bScareDoorProxy(const tString &in asTimer)
+	{
+		Entity_SetActive("Sound_4",true);
+		Sound_Play("Sound_4",0.0f,false);;
+	}
+	
+	
+	void omnitool_OnPlayerInteract(const tString &in asEntity)
+	{
+		Map_AddTimer("timer_cathpickup",0.90f,"timer_cathpickup");
+	}
+	
+	
+	void timer_cathpickup(const tString &in asTimer)
+	{
+		Music_PlayExt("02_06_formattedchip",false,4.5f,1.0f,0.15f,0.0f,eMusicPrio_BigEvent, false);
+	}
+	
+	void timer_monsterScareSound(const tString &in asTimer)
+	{
+		Entity_SetActive("Sound_MonsterAnounce",true);
+		Sound_Play("Sound_MonsterAnounce",0.0f,false);
+	}
+	
+	void proxy_room()
+	{
+		bScareDoorProxy = true;
+		Button_SetLocked("lab_2*",false,true);
+		SlideDoor_SetClosed("lab_2",false,false);
+		
+		Pathfinder_Track_Start("puppet_1_1", true, 1.0f, "");
+		Entity_SetActive("puppet_1_1",true);
+		bIsEnemyActiveLab_1 = true;
+		bIsEnemySpawnedLab_1 = true;
+	
+	}
+	
+	bool TriggerArea_startAlarmSound(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Map_AddTimer("timer_LobbbyAlarm",0.25f,"timer_LobbbyAlarm");
+		}
+		return false;
+	}
+
+	
+	bool climb_area(const tString &in asParent, const tString &in asChild, int alState)
+	{	
+		if(alState == 1)
+		{
+			Entity_SetActive("ClimbArea_1",false);
+			Entity_SetActive("ClimbArea_2",true);
+			Entity_SetActive("climb_area",false);
+		}
+		return false;
+	}
+	
+	void climb_area_2_OnPlayerLookAt(const tString &in asEntity, int alState)
+	{
+		Map_AddTimer("timer_closeLobbyDoor",1.1f,"timer_closeLobbyDoor");
+	}
+	
+	void timer_closeLobbyDoor(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("security_shutter_4", true, false);
+		ParticleSystem_SetActive("ps_tunnelsmoke_*",false);
+		Billboard_SetVisible("Billboard_94",false);
+		Effect_Shake_Start(2.2f, 2.4f, 0.2f, 0.6f, cVector3f(0.015f, 0.015f, 0.015f),0);
+		Sound_CreateAtEntity("tremor", "01_02_upsilon_inside_02/sfx/small_room/tremor", "player", 0.1f, false, 4.0f);
+	}
+	
+	cSequenceStatesData mMainRevealSequence;
+	void SequenceMainReveal(const tString &in asTimer)
+	{
+		Sequence_Begin("SequenceMainReveal", mMainRevealSequence);
+				
+		if (Sequence_DoStepAndWait(1.0f))
+		{
+			Player_ExitTerminal();
+			Music_Stop(0.2f,eMusicPrio_SceneAmb);
+			//Map_AddTimer("timer_playdialog",6.2f,"timer_playdialog");
+		}
+
+		if (Sequence_DoStepAndWait(1))
+		{
+			SlideDoor_SetClosed("slidedoor_lobby_airlock_1",false,false);
+			Lamp_SetLit("lamp_lobby_green_*",true,true);
+			Music_Play("01_01_getting_out", 0.5f, false, eMusicPrio_BigEvent);
+		}
+
+		else if (Sequence_DoStepAndWait(15))
+		{
+			Terminal_SetGuiActive("panel_infoTrain*",true,0.25f);  
+		}
+
+		Sequence_End();
+	}
+		
+	bool TriggerArea_securityCheckpoint(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("slidedoor_lobby_airlock_1",true,false);
+		Map_RemoveTimer("timer_LobbbyAlarm");
+		Map_RemoveTimer("timer_LobbyAlarmSetup");
+		Map_RemoveTimer("timer_LobbyAlarmSetup_2");
+		Map_RemoveTimer("timer_LobbyAlarmReset");
+		Map_RemoveTimer("timer_alarmClassicMid");
+		Map_RemoveTimer("timer_alarmClassicLate");
+		Map_AddTimer("timer_silenceAlarms",0.25f,"timer_silenceAlarms");
+		return false;
+	}
+		
+	void timer_silenceAlarms(const tString &in asTimer)
+	{
+		Sound_Stop("sfx_LobbbyAlarm",0.1f);
+		Sound_Stop("Sound_highAlarm*",0.1f);
+		Sound_Stop("Sound_highAlarm_1",0.1f);
+		Sound_Stop("Sound_impactAlarm*",0.1f);
+	}
+		
+	void button_checkpoint_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Lever_SetStuckState("lever_checkpoint",0,true);
+			Lamp_SetLit("lamp_CK_airlock_1", false, true);
+			Lamp_SetLit("lamp_CK_airlock_2", true, true);
+			Lamp_SetLit("lamp_wall_flat_small_6", true, true);
+			Sound_CreateAtEntity("machine_checkpoint_0", "Entities_Station/tech/terminal_beeps/omicron_battery_recharge_beep", "button_checkpoint", 0.0f, false, 1.0f);
+			Sound_CreateAtEntity("machine_checkpoint_0a", "03_02_omicron_inside/SFX/lockdown_release/loading/stop", "lever_checkpoint", 0.0f, false, 1.0f);
+			Map_AddTimer("timer_lampsweet_1_1",0.45f,"timer_lampsweet_1_1");
+		}
+	}
+	
+	void timer_lampsweet_1_1(const tString &in asTimer){Lamp_SetLit("lamp_sweet_button_1", true, true);Map_AddTimer("timer_lampsweet_1_2",0.45f,"timer_lampsweet_1_2");}
+	void timer_lampsweet_1_2(const tString &in asTimer){Lamp_SetLit("lamp_sweet_button_2", true, true);Map_AddTimer("timer_lampsweet_1_3",0.75f,"timer_lampsweet_1_3");}
+	void timer_lampsweet_1_3(const tString &in asTimer){Lamp_SetLit("lamp_sweet_button_3", true, true);}
+		
+	void lever_checkpoint_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Lamp_SetLit("lamp_CK_airlock_2", false, true);
+			Lamp_SetLit("lamp_wall_flat_small_6", false, true);
+			Map_AddTimer("timer_lampsweet_2_1",0.6f,"timer_lampsweet_2_1");
+			seqCheckpointRoom("");
+		}
+	}
+	
+		void timer_lampsweet_2_1(const tString &in asTimer){Lamp_SetLit("lamp_sweet_button_4", true, true);Map_AddTimer("timer_lampsweet_2_2",0.6f,"timer_lampsweet_2_2");}
+		void timer_lampsweet_2_2(const tString &in asTimer){Lamp_SetLit("lamp_sweet_button_5", true, true);Map_AddTimer("timer_lampsweet_2_3",1.15f,"timer_lampsweet_2_3");}
+		void timer_lampsweet_2_3(const tString &in asTimer){Lamp_SetLit("lamp_sweet_button_6", true, true);}
+	
+		cSequenceStatesData seqCheckpoint;
+		void seqCheckpointRoom(const tString &in asTimer)
+		{
+			Sequence_Begin("seqCheckpointRoom", seqCheckpoint);
+			
+				if     (Sequence_DoStepAndWait(0.75f)){}
+				if     (Sequence_DoStepAndWait(1.1f)){Sound_CreateAtEntity("machine_checkpoint_a", "01_02_upsilon_inside_02/sfx/generator_puzzle/generator_puzzle_switch_on", "lever_checkpoint", 0.0f, false, 1.0f);}
+				else if(Sequence_DoStepAndWait(2.25f)){Sound_CreateAtEntity("machine_checkpoint_1", "03_02_omicron_inside/SFX/suit_diagnostics/suit_fail/skin_fail", "lever_checkpoint", 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(5.0f)){Sound_CreateAtEntity("machine_revup", "03_02_omicron_inside/SFX/suit_diagnostics/motor/start", "button_checkpoint", 0.45f, false, 1.0f);}
+				else if(Sequence_DoStepAndWait(1.0f)){Sound_CreateAtEntity("machine_revup1", "03_02_omicron_inside/SFX/suit_diagnostics/motor/loop", "button_checkpoint", 0.0f, false, 1.0f);}
+				else if(Sequence_DoStepAndWait(1.0f)){Lamp_SetLit("lamp_checkpoint_*",true,true);Sound_CreateAtEntity("machine_checkpoint_2", "01_04_transport_station/SFX/train/lights_on", "lamp_checkpoint_1", 0.0f, false, 3.0f);Sound_CreateAtEntity("machine_checkpoint_2a", "01_04_transport_station/SFX/train/lights_on", "lamp_checkpoint_2", 0.0f, false, 3.0f);}	
+				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_SetActive("ParticleSystem_checkpoint_*",true);Sound_CreateAtEntity("machine_checkpoint_5a", "level_amb_shared_interior/amb/spot/steam/hi_pressure", "lamp_checkpoint_2", 0.0f, false, 2.0f);Sound_CreateAtEntity("machine_checkpoint_5b", "level_amb_shared_interior/amb/spot/steam/hi_pressure", "lamp_checkpoint_1", 0.0f, false, 2.0f);Music_StopAll(0.65f);}	
+				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_SetActive("ParticleSystem_checkpointb_*",true);}	
+				else if(Sequence_DoStepAndPause(2.0f)){phoneCall();FogArea_SetVisible("FogArea_checkpoint",true);}	
+				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_SetVisible("ParticleSystem_checkpointb_*",false);ParticleSystem_SetActive("ParticleSystem_checkpointb_*",false);ParticleSystem_SetActive("ParticleSystem_checkpoint_*",false);Sound_Stop("machine_checkpoint_5*",0.35f);Sound_CreateAtEntity("machine_checkpoint_6", "03_02_omicron_inside/gameplay/robot_puzzle/motor/stop", "lever_checkpoint", 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(1.45f)){Sound_Stop("machine_revup1",0.1f);Sound_CreateAtEntity("machine_revup2", "03_02_omicron_inside/SFX/suit_diagnostics/motor/stop", "button_checkpoint", 0.0f, false, 1.0f);}	
+				else if(Sequence_DoStepAndWait(1.45f)){Lamp_SetLit("lamp_checkpoint_*",false,true);Sound_CreateAtEntity("machine_checkpoint_2", "01_04_transport_station/SFX/train/lights_on", "lamp_checkpoint_1", 0.0f, false, 3.0f);Sound_CreateAtEntity("machine_checkpoint_2a", "01_04_transport_station/SFX/train/lights_on", "lamp_checkpoint_2", 0.0f, false, 3.0f);}	
+				else if(Sequence_DoStepAndWait(0.5f)){Sound_CreateAtEntity("machine_checkpoint_7", "03_02_omicron_inside/SFX/suit_diagnostics/drain_battery_button_press", "lever_checkpoint", 0.0f, false, 1.0f);}
+				else if(Sequence_DoStepAndWait(1.25f)){Sound_CreateAtEntity("machine_checkpoint_7a", "03_02_omicron_inside/SFX/suit_diagnostics/calibration_complete", "lever_checkpoint", 0.0f, false, 1.0f);}
+				else if(Sequence_DoStepAndWait(1.35f)){Sound_CreateAtEntity("machine_checkpoint_8", "Entities_Station/doors/electrical_doors/electrical_door_ready", "slidedoor_lobby_airlock_2", 0.0f, false, 1.0f);Lamp_SetLit("lamp_door_checkpoint", true, true);}
+				else if(Sequence_DoStepAndWait(1.0f)){SlideDoor_SetClosed("slidedoor_lobby_airlock_2",false,false);}					 
+			Sequence_End();
+		}
+		
+		void phoneCall()
+		{
+			Entity_SetActive("emergency_intercom_off",false);
+			Entity_SetActive("emergency_intercom_incoming",true);
+			Entity_SetActive("Trigger_phone",true);
+			Light_SetBrightness("PointLight_221",2.0f);
+			Sound_CreateAtEntity("phone_call_1", "01_04_transport_station/SFX/cath_intercom_call/ringing", "emergency_intercom_incoming", 0.0f, false, 1.0f);
+			Map_AddTimer("timer_phone_call_ring",4.0f,"timer_phone_call_ring");
+		}
+		
+		void timer_phone_call_ring(const tString &in asTimer)
+		{
+			Sound_CreateAtEntity("phone_call_1", "01_04_transport_station/SFX/cath_intercom_call/ringing", "emergency_intercom_incoming", 0.0f, false, 1.0f);
+			Map_AddTimer("timer_phone_call_ring",4.0f,"timer_phone_call_ring");
+		}
+		
+		void Trigger_phone_OnPlayerInteract(const tString &in asEntity)
+		{
+			Sound_Stop("phone_call_1",0.0f);
+			Map_RemoveTimer("timer_phone_call_ring");
+			Entity_SetActive("emergency_intercom_off",true);
+			Entity_SetActive("emergency_intercom_incoming",false);
+			Entity_SetActive("emergency_intercom_connected",true);
+			Sound_CreateAtEntity("phone_call_2", "01_04_transport_station/SFX/cath_intercom_call/answer", "emergency_intercom_off", 0.0f, false, 1.0f);
+			Player_StartLookAt("emergency_intercom_off", 1.0f, 1.25f, 2.0f);
+			Player_FadeFOVMulTo(0.85f,1.5f);
+			Light_FadeTo("PointLight_221",cColor(0.573,1,0.531,1),-1,0.125f);
+			Map_AddTimer("timer_playdialog",0.75f,"timer_playdialog");
+		}
+
+		void timer_playdialog(const tString &in asTimer)
+		{
+						//"Where am i"
+			//Voice_Play("", -1, "endCall", 1);
+			Map_AddTimer("timer_endphonecall",0.75f,"timer_endphonecall");
+		}
+		
+		void timer_endphonecall(const tString &in asTimer)
+		{
+			Sound_CreateAtEntity("phone_call_3", "01_04_transport_station/SFX/cath_intercom_call/hang_up", "emergency_intercom_off", 0.0f, false, 1.0f); 
+			Entity_SetActive("emergency_intercom_connected",false);
+			Player_FadeFOVMulTo(1.0f,1.0f);
+			Player_StopLookAt(1.0f);
+			SequenceStates_Resume("seqCheckpointRoom");
+			Light_SetBrightness("PointLight_221",0.0f);
+		}
+		
+		void endCall(const tString&in asScene, const tString&in asSubject)
+		{
+			Sound_CreateAtEntity("phone_call_3", "01_04_transport_station/SFX/cath_intercom_call/hang_up", "emergency_intercom_off", 0.0f, false, 1.0f); 
+			Entity_SetActive("emergency_intercom_connected",false);
+			Player_FadeFOVMulTo(1.0f,1.0f);
+			Player_StopLookAt(1.0f);
+			SequenceStates_Resume("seqCheckpointRoom");
+			Light_SetBrightness("PointLight_221",0.0f);
+		}
+		
+		bool TriggerArea_securityCheckpoint_end(const tString &in asParent, const tString &in asChild, int alState)
+		{	
+			if(alState == 1)
+			{
+				SlideDoor_SetClosed("slidedoor_lobby_airlock_2", true, false);
+				Music_Play("01_01_getting_out",0.7f, false, eMusicPrio_BigEvent);
+			}
+			return false;
+		}
+		
+		bool hasUsedZoomArea_1 = false;
+		void ZoomArea_1_OnPlayerInteract(const tString &in asEntity)
+		{
+			if(!hasUsedZoomArea_1)
+			{
+				Music_Play("02_01_reveal",0.75f, false, eMusicPrio_SceneAmb);
+			}
+			hasUsedZoomArea_1 = true;
+		}
+	
+	bool bVisitedElevator = false;
+	bool CC_ElevatorDiag_trig(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetOpenAmount("cargobay_door_1",0.45f,true);
+		Light_SetBrightness("SpotLight_lure_1",1.5f);
+		Voice_Stop("Where am i");
+		//Voice_Play("ElevatorBroken", -1, "", 2);
+		bVisitedElevator = true;
+		return false;
+	}
+		
+	bool TriggerArea_elevator_lockin(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		seqLockInElevatorRoom("");
+		Effect_Shake_Start(2.2f, 2.4f, 0.2f, 0.6f, cVector3f(0.015f, 0.015f, 0.015f),0);
+		Sound_CreateAtEntity("tremor", "01_02_upsilon_inside_02/sfx/small_room/tremor", "player", 0.1f, false, 4.0f);
+		Sound_CreateAtEntity("dust", "level_amb_shared_interior/amb/sfx/dust_sprinkle_large_space", "station_floor_lab_floor_welder_tiny_noyellow_6", 1.0f, false, 2.05f);
+		return false;
+	}
+	
+	cSequenceStatesData seqLockInEl;
+	void seqLockInElevatorRoom(const tString &in asTimer)
+	{
+		Sequence_Begin("seqLockInElevatorRoom", seqLockInEl);
+		if     (Sequence_DoStepAndWait(0.4f)){}
+		else if(Sequence_DoStepAndWait(0.6f)){SlideDoor_SetClosed("door_elevatorroom",true,false);Button_SetLocked("door_elevatorroom_*",true,true);}
+		else if(Sequence_DoStepAndWait(0.35f)){Sound_CreateAtEntity("alert", "Entities_Station/doors/theta_door/unlock", "door_elevatorroom", 0.1f, false, 1.0f);}
+		else if(Sequence_DoStepAndWait(1.0f)){Sound_CreateAtEntity("alert2", "01_01_upsilon_awake/sfx/omnitool/UW_omni_door_detect", "door_elevatorroom", 0.1f, false, 1.0f);}				
+		Sequence_End();
+	}
+	
+	bool TriggerArea_CloseBehind(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("cargobay_door_1",true,false);
+		Map_AddTimer("timer_closedoorsfx",0.4f,"timer_closedoorsfx");
+		Voice_Stop("ElevatorBroken");
+		Light_SetBrightness("SpotLight_lure_1",0.0f);
+		return false;
+	}
+	
+	void timer_closedoorsfx(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("closedoorsfx", "level_amb_shared_machines/train_door/train_close_start", "player", 0.0f, false, 1.0f);
+	}	
+	
+	void cargobay_door_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1 && !hasMainLeverBennThrown && bVisitedElevator)
+		{
+			Sound_CreateAtEntity("cargobay_door_1_shut", "Entities_Station/doors/cargo_train_door/onmax", "cargobay_door_1", 0.0f, false, 0.5f);
+		}	
+	}
+
+	bool TriggerArea_robot_prescare(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Sound_CreateAtEntity("robot_prescare_1", "01_01_upsilon_awake/sfx/door_smash/door_smash", "cargobay_door_2", 0.1f, false, 1.0f);
+			Map_AddTimer("timer_robot_prescare",0.89f,"timer_robot_prescare");
+		}
+		return false;
+	}
+	
+	void timer_robot_prescare(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("robot_prescare_2", "01_01_upsilon_awake/sfx/construct_behind_door", "cargobay_door_2", 0.1f, false, 1.0f);
+	}
+	
+	bool bFusePuzzleSwitch_1 = false;
+	bool bFusePuzzleSwitch_2 = false;
+	bool bFusePuzzleSwitch_3 = false;
+	
+	void fuse_Switch_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			bFusePuzzleSwitch_1 = true;
+			MovingButton_SetLocked("fuse_Switch_1", true, true);
+			Entity_SetActive("fuse_Switch_lamp_1",false);
+			Entity_SetActive("fuse_Switch_lamp_4",true);
+			Sound_CreateAtEntity("fusebox1", "Entities_Station/tech/plug/plug_in", "fuse_Switch_1", 0.0f, false, 1.0f);
+			unlockFuseLever();
+		}
+	}
+	
+	void fuse_Switch_2_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			bFusePuzzleSwitch_2 = true;
+			MovingButton_SetLocked("fuse_Switch_2", true, true);
+			Entity_SetActive("fuse_Switch_lamp_2",false);
+			Entity_SetActive("fuse_Switch_lamp_5",true);
+			Sound_CreateAtEntity("fusebox1", "Entities_Station/tech/plug/plug_in", "fuse_Switch_2", 0.0f, false, 1.0f);
+			unlockFuseLever();
+		}
+	}
+	
+	void fuse_Switch_3_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			bFusePuzzleSwitch_3 = true;
+			MovingButton_SetLocked("fuse_Switch_3", true, true);
+			Entity_SetActive("fuse_Switch_lamp_3",false);
+			Entity_SetActive("fuse_Switch_lamp_6",true);
+			Sound_CreateAtEntity("fusebox1", "Entities_Station/tech/plug/plug_in", "fuse_Switch_3", 0.0f, false, 1.0f);
+			unlockFuseLever();
+		}
+	}
+	
+	void unlockFuseLever()
+	{
+		if(bFusePuzzleSwitch_1 && bFusePuzzleSwitch_2 && bFusePuzzleSwitch_3)
+		{
+			Lever_SetStuckState("fuse_lever",0 ,true);
+			Lamp_SetLit("fuse_lamp_lever", true, true);
+			Sound_CreateAtEntity("fusebox1", "03_02_omicron_inside/SFX/lockdown_release/loading/stop", "fuse_lamp_lever", 0.0f, false, 1.0f);
+		}
+	}
+	
+	void fuse_lever_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetInteractionDisabled("fuse_lever", true);
+			Lamp_SetLit("fuse_lamp_lever", false, true);
+			Lamp_SetLit("fuse_ind_red", false, true);
+			Lamp_SetLit("fuse_ind_green", true, true);
+			Lever_SetStuckState("lever_mainbreaker",0 ,true);
+			Sound_CreateAtEntity("fusebox2", "01_02_upsilon_inside_02/special/fuse/fuse_insert", "fuse_lever", 0.0f, false, 1.0f); //02_05_theta/sweeteners/server_lever/server_lever_end
+			Map_AddTimer("timer_AlarmBreaker",0.6f,"timer_AlarmBreaker");
+			Lamp_SetLit("lamp_breaker_ind*", true, true);
+			Lamp_SetLit("lamp_breaker_cute*", true, true);
+			Lamp_SetLit("breaker_lamp", true, true);
+			Entity_SetActive("TriggerArea_robot_prescare",true);
+			Lamp_SetLit("fluorescent_wall_mainBreaker", true, true);
+		}
+	}
+	
+	void timer_AlarmBreaker(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("breaker_alarm", "01_02_upsilon_inside_02/sfx/robot_arm_event/robot_arm_event_triggered", "lever_mainbreaker", 0.1f, false, 5.0f);
+	}
+
+	bool hasMainLeverBennThrown = false;
+	void lever_mainbreaker_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1 && !hasMainLeverBennThrown)
+		{
+			Entity_SetInteractionDisabled("lever_mainbreaker", true);
+			Music_StopAll(0.5f);
+			Sound_CreateAtEntity("breaker_sfx", "03_02_omicron_inside/SFX/wau_flower_events/canteen_wau_powerdown", "player", 0.0f, false, 2.0f);
+			Map_AddTimer("timer_OpenDoor",4.2f,"timer_OpenDoor");
+			Map_AddTimer("timer_resetlever",2.0f,"timer_resetlever");
+			Lamp_SetLit("lamp_breaker_ind*", false, true);
+			Lamp_SetLit("lamp_breaker_cute*", false, true);
+			Lamp_SetLit("breaker_lamp", false, true);
+			Lamp_SetLit("cargo_roomlight_red_*", false, true);
+			Lamp_SetLit("fluorescent_wall_mainBreaker", false, true);
+			Lamp_SetLit("monitor_theta_1", false, true);
+			//Entity_SetEffectBaseColor("current_transformer_collapse_*", cVector3f(0, 0, 0));
+			Sound_Stop("Sound_main_breaker",0.1f);
+			Effect_Fade_Out(0);// black out
+			cLux_AddDebugMessage("debug: Black out");
+			if(Entity_IsActive("TriggerArea_robot_prescare")){Entity_SetActive("TriggerArea_robot_prescare",false);}
+			hasMainLeverBennThrown = true;
+		}
+	}
+	
+	void timer_resetlever(const tString &in asTimer)
+	{
+		Effect_Fade_In(8.0f);// black in 
+		Lever_SetAutoMoveTarget("lever_mainbreaker",-1);
+		Lever_SetStuckState("lever_mainbreaker",1,false);
+	}
+	
+	void timer_OpenDoor(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("door_down", "01_02_upsilon_inside_02/special/fuse/fuse_door_unlock", "cargobay_door_2", 0.0f, false, 1.0f);
+		Map_AddTimer("timer_beginCargoScare",0.9f,"timer_beginCargoScare");
+	}
+	
+	void timer_beginCargoScare(const tString &in asTimer)
+	{
+		Light_SetBrightness("spot_cargo_doorscare",2.0f);
+		SlideDoor_SetClosed("cargobay_door_2", false, false);
+		Entity_SetActive("maintenance_infected_1",true);
+		Pathfinder_MoveToNode("maintenance_infected_1","PathNode_Cargo_robot_8","robot_end_path_8",0.0f,false,"robot_end_path_8");
+	}
+	
+	void robot_end_path_8(const tString& in asEntityName, bool abReachedEnd)
+	{
+		Pathfinder_Track_Stop("maintenance_infected_1");
+		Entity_SetActive("TriggerArea_CloseCargo",true);
+		//HeadTracker_SetActive("maintenance_infected_1", true);
+		//HeadTracker_SetTargetEntity("maintenance_infected_1","PosNodeArea_1");
+		Map_AddTimer("timer_returnRobot",7.0f,"timer_returnRobot");
+		Map_AddTimer("timer_look1",1.5f,"timer_look1");
+		Map_AddTimer("timer_look2",3.2f,"timer_look2");
+	}
+	
+	void timer_look1(const tString &in asTimer)
+	{
+		//HeadTracker_SetTargetEntity("maintenance_infected_1","PosNodeArea_2");
+	}
+	
+	void timer_look2(const tString &in asTimer)
+	{
+		//HeadTracker_SetTargetEntity("maintenance_infected_1","PosNodeArea_3");
+	}
+	
+	void timer_returnRobot(const tString &in asTimer)
+	{
+		HeadTracker_SetActive("maintenance_infected_1", false);
+		Pathfinder_MoveToNode("maintenance_infected_1","PathNode_Cargo_robot_12","robot_end_path_13",1.f,false,"robot_end_path_13");
+	}
+	
+	void robot_end_path_13(const tString& in asEntityName, bool abReachedEnd)
+	{
+		if(abReachedEnd == true)
+		{
+			Pathfinder_Track_Stop("maintenance_infected_1");
+			Entity_SetActive("maintenance_infected_1",false);
+			Light_SetBrightness("spot_cargo_doorscare",0.0f);
+			Map_AddTimer("timer_rebot",1.0f,"timer_rebot");
+		}else
+		{
+			Map_AddTimer("timer_returnRobot",0.1f,"timer_returnRobot");
+		}
+	}
+	
+	bool TriggerArea_CloseCargo(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("cargobay_door_2", true, false);
+		Entity_SetActive("block_box_46",false);
+		return false;
+	}
+	
+	void timer_rebot(const tString &in asTimer)
+	{
+		Lamp_SetupFlicker("cargo_roomlight_red_*",0.1f,0.4f, 0.4f,0.8f,false,"level_amb_shared_props/lights/light_flickering","","","");
+		Lamp_SetupFlicker("lamp_ceiling_bare_*",0.1f,0.15f, 0.35f,0.6f,false,"level_amb_shared_interior/amb/sfx/detail/lamp/blink","","","");
+		Lamp_SetFlickerActive("cargo_roomlight_red_*",true);	
+		Lamp_SetFlickerActive("lamp_ceiling_bare_*",true);	
+		Music_Stop(2.0f,eMusicPrio_AgentAmb);
+		Music_FadeVolumeMul(2.0f,0.0f);
+				
+		SeqRebootCargo("");
+	}
+	
+		cSequenceStatesData seqReboot;
+		void SeqRebootCargo(const tString &in asTimer)
+		{
+			Sequence_Begin("SeqRebootCargo", seqReboot);
+			
+				if     (Sequence_DoStepAndWait(1.75f)){Sound_CreateAtEntity("reboot", "02_05_theta/sweeteners/server_lever/server_lever_start", "lever_mainbreaker", 0.0f, false, 4.0f);}
+				else if(Sequence_DoStepAndWait(3.4f)) {Sound_CreateAtEntity("reboot", "02_05_theta/sfx/events/airlock_door_alarm", "player", 0.0f, false, 2.0f);}
+				else if(Sequence_DoStepAndWait(3.7f)) {Sound_CreateAtEntity("reboot", "03_02_omicron_inside/SFX/lockdown_release/suit_room", "player", 0.0f, false, 4.0f);}
+				else if(Sequence_DoStepAndWait(0.45f)){Effect_Shake_Start(2.2f, 2.4f, 0.2f, 0.6f, cVector3f(0.015f, 0.015f, 0.015f),0);Sound_CreateAtEntity("tremor", "01_02_upsilon_inside_02/sfx/small_room/tremor", "player", 0.1f, false, 4.0f);Sound_CreateAtEntity("dust", "level_amb_shared_interior/amb/sfx/dust_sprinkle_large_space", "player", 0.1f, false, 2.05f);}
+				else if(Sequence_DoStepAndWait(2.0f)) {Sound_CreateAtEntity("reboot", "02_05_theta/sweeteners/light_flicker_event/start", "lamp_ceiling_bare_1", 0.0f, false, 3.0f);Lamp_SetLit("cargo_roomlight_red_*", true, true);}
+				else if(Sequence_DoStepAndWait(5.5f)) {Lamp_SetLit("lamp_ceiling_bare_*", true, true);}
+				else if(Sequence_DoStepAndWait(0.95f)){seqRedLightsCargo("");Sound_CreateAtEntity("reboot", "Entities_Station/doors/electrical_doors/door_heavy_jam", "player", 0.0f, false, 2.0f);}
+				else if(Sequence_DoStepAndWait(0.45f)){seqMainLightsCargo("");Light_SetBrightness("SpotLight_31",0.25f);}
+				else if(Sequence_DoStepAndWait(1.0f)) {Sound_CreateAtEntity("reboot", "Entities_Station/doors/nuclear_scanner_door/close", "generator_radio_single_4", 0.0f, false, 2.0f);}
+				else if(Sequence_DoStepAndWait(1.2f)) {restorePower();}
+				else if(Sequence_DoStepAndWait(0.08f)){Music_Play("01_01_lightson",0.5f, false, eMusicPrio_BigEvent);Button_SetLocked("cargobay_door_*",false,true);Sound_CreateAtEntity("cargobay_door_1", "Entities_Station/doors/electrical_doors/electrical_door_ready", "cargobay_door_1", 0.0f, false, 3.0f);Sound_CreateAtEntity("cargobay_door_2", "Entities_Station/doors/electrical_doors/electrical_door_ready", "cargobay_door_2", 0.0f, false, 3.0f);}
+				
+			Sequence_End();
+		}
+		
+		
+		int[] arrCargoSeq_lightsRed = {1,2,3,4,5,6,7,8};
+		bool hasSetupSeqRedLightsCargo = false;
+		void shuffle_arrCargoSeq_lightsRed()
+		{
+			if(!hasSetupSeqRedLightsCargo)
+			{
+				for(int a = 0; a <= 16; a++)
+				{
+					arrCargoSeq_lightsRed = swapTwoVals(arrCargoSeq_lightsRed);
+				}
+				hasSetupSeqRedLightsCargo = true;
+			}
+		}
+		
+		cSequenceStatesData seqRedCargo;
+		void seqRedLightsCargo(const tString &in asTimer)
+		{
+			Sequence_Begin("seqRedLightsCargo", seqRedCargo);
+				shuffle_arrCargoSeq_lightsRed();
+				if     (Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[0],false);cLux_AddDebugMessage("flicker[" + 0 + "]: " + arrCargoSeq_lightsRed[0]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[1],false);cLux_AddDebugMessage("flicker[" + 1 + "]: " + arrCargoSeq_lightsRed[1]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[2],false);cLux_AddDebugMessage("flicker[" + 2 + "]: " + arrCargoSeq_lightsRed[2]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[3],false);cLux_AddDebugMessage("flicker[" + 3 + "]: " + arrCargoSeq_lightsRed[3]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[4],false);cLux_AddDebugMessage("flicker[" + 4 + "]: " + arrCargoSeq_lightsRed[4]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[5],false);cLux_AddDebugMessage("flicker[" + 5 + "]: " + arrCargoSeq_lightsRed[5]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[6],false);cLux_AddDebugMessage("flicker[" + 6 + "]: " + arrCargoSeq_lightsRed[6]);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("cargo_roomlight_red_" + arrCargoSeq_lightsRed[7],false);cLux_AddDebugMessage("flicker[" + 7 + "]: " + arrCargoSeq_lightsRed[7]);}
+
+			Sequence_End();
+		}
+		
+		
+		int[] arrCargoSeq_lightsMain = {1,2,3,4,5,6,7,8};
+		bool hasSetupSeqMainLightsCargo = false;
+		void shuffle_arrCargoSeq_lightsMain()
+		{
+			if(!hasSetupSeqMainLightsCargo)
+			{
+				for(int a = 0; a <= 16; a++)
+				{
+					arrCargoSeq_lightsMain = swapTwoVals(arrCargoSeq_lightsMain);
+				}
+				hasSetupSeqMainLightsCargo = true;
+			}
+		}
+		
+		cSequenceStatesData seqMainLCargo;
+		void seqMainLightsCargo(const tString &in asTimer)
+		{
+			Sequence_Begin("seqMainLightsCargo", seqMainLCargo);
+				shuffle_arrCargoSeq_lightsMain();
+				if     (Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[0],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[1],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[2],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[3],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[4],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[5],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[6],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("lamp_ceiling_bare_" + arrCargoSeq_lightsMain[7],false);} 
+
+			Sequence_End();
+		}
+
+		int[] arrOfficeSeqLights = {1,2,3,4,5,6};
+		bool hasSetupSeqOfficeLights = false;
+		void shuffle_arrOfficeSeqLights()
+		{
+			if(!hasSetupSeqOfficeLights)
+			{
+				for(int a = 0; a <= 16; a++)
+				{
+					arrOfficeSeqLights = swapTwoVals(arrOfficeSeqLights);
+				}
+				hasSetupSeqOfficeLights = true;
+			}
+		}
+		
+		cSequenceStatesData seqOfficeL;
+		void seqOfficeLights(const tString &in asTimer)
+		{
+			Sequence_Begin("seqOfficeLights", seqOfficeL);
+				shuffle_arrOfficeSeqLights();
+				if     (Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("office_lamps_ceiling_" + arrOfficeSeqLights[0],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("office_lamps_ceiling_" + arrOfficeSeqLights[1],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("office_lamps_ceiling_" + arrOfficeSeqLights[2],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("office_lamps_ceiling_" + arrOfficeSeqLights[3],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("office_lamps_ceiling_" + arrOfficeSeqLights[4],false);}
+				else if(Sequence_DoStepAndWait(cMath_RandRectf(0.25f,1.0f))){Lamp_SetFlickerActive("office_lamps_ceiling_" + arrOfficeSeqLights[5],false);}
+
+			Sequence_End();
+		}
+		
+		int[] swapTwoVals(const array<int>& input)
+		{
+			int length = input.length() - 1;
+			int rand = cMath_RandRectl(0, length);
+			int rand2 = cMath_RandRectl(0, length );
+			array<int> workingArray(length);
+			workingArray = input;
+			if(rand == rand2)
+			{
+				if(rand == length)
+				{
+					rand -= 1;
+				}
+				else
+				{
+					rand += 1;
+				}
+			}
+			int newval1 = input[rand2];
+			int newval2 = input[rand];
+			workingArray[rand] = newval1;
+			workingArray[rand2] = newval2;
+			return workingArray;
+		}
+		
+		void restorePower()
+		{
+			cLux_AddDebugMessage("debug: restorePower()");
+			Lamp_SetLit("wall_long_skinny_white_6", true, true);
+			Lamp_SetLit("hallway_lamps_ceiling_*", true, true);
+			Lamp_SetLit("elevator_room_lamp_*", true, true);
+		}
+		
+		void TriggerArea_cave_look_OnPlayerLookAt(const tString &in asEntity, int alState)
+		{
+			Map_AddTimer("timer_cavein_dust",1.0f,"timer_cavein_dust");
+			Effect_Shake_Start(0.09, 0.09, 0.16, 2.2f);
+			Sound_CreateAtEntity("cavedust1", "level_amb_shared_interior/amb/sfx/metal/resonant_rattle", "player", 0.0f, false, 1.0f);
+		}
+		
+		void timer_cavein_dust(const tString &in asTimer)
+		{
+			Sound_CreateAtEntity("cavedust1", "level_amb_shared_interior/amb/sfx/dust/medium_granular", "player", 0.0f, false, 1.0f);
+		}
+		///////////////////////////////////////////////// AIRLOCK ROOM 1
+	bool triggcloseAirlockRoom1Door(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			SlideDoor_SetClosed("cavedoor_4", true, false);
+		}
+		return false;
+	}
+
+	//
+	//////////////////////////////
+	////Elevator Logic
+	
+	
+	bool ElevatorChipHasBeenInserted = false;
+	
+	bool ShutElevatorButton(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(ElevatorChipHasBeenInserted == true)
+		{
+			Entity_SetActive("theta_panel_elevator_1",true);
+			Entity_SetActive("theta_panel_base",false);
+			Entity_SetActive("door_panel_broken_rigid_1",false);
+			Entity_SetActive("InteractAuxArea_1",true);
+			Sound_CreateAtEntity("sound_elevator_button", "Entities_Station/object/memchip_cylinder/memchip_cylinder_button", "theta_panel_elevator_1", 0.0f, false, 2.0f);
+			Map_AddTimer("timer_ElevatorsoundChime",0.35f,"timer_ElevatorsoundChime");
+		}
+
+		return false;
+	}
+	
+	void timer_ElevatorsoundChime(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_elevator_button", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_device_connect", "theta_panel_elevator_1", 0.0f, false, 2.0f);
+
+	}
+	
+	bool hasElevatorBeenClosedFinally = false;
+	bool brokenChipHasBeenRemoved = false;
+
+	
+	void ElevatorButton(const tString &in asEntity, int alState)
+	{
+		if(alState == -1){
+			
+			Map_AddTimer("timer_ElevatorDoorShut",0.45f,"timer_ElevatorDoorShut");
+		}
+	}
+
+	void timer_ElevatorDoorShut(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("slidedoor_theta_elevator_front_1",true,false);
+		
+		Map_AddTimer("timer_ElevatorSetShutVal",0.55f,"timer_ElevatorSetShutVal");
+
+	}
+	
+	void timer_ElevatorSetShutVal(const tString &in asTimer)
+	{
+		hasElevatorBeenClosedFinally = true;
+	}
+	
+	
+	
+	bool elevator_Chip_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "elevator_area" && ElevatorChipHasBeenInserted == false) return true;
+		return false;
+	}
+
+	bool elevator_Chip_OnUse(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "elevator_area" && brokenChipHasBeenRemoved == true)
+		{
+			ElevatorChipHasBeenInserted = true;
+			
+			Entity_SetActive("elevator_chip_world", true);
+			Prop_SetStaticPhysics("elevatorchip_broken",false);
+			Sound_CreateAtEntity("sound_elevator_button", "Entities_Station/object/server_dial/start", "theta_panel_elevator_1", 0.0f, false, 2.0f);
+			Player_RemoveTool("elevator_Chip"); //removes tool from inventory
+
+		}
+		
+		return false;		
+	}
+	
+	//remove broken chip
+	void StickyArea_ElevatorChip_Detach(const tString &in asStickyArea, const tString &in asBodyName)
+	{
+		ParticleSystem_SetActive("ParticleSystem_button",false);
+		Light_SetBrightness("PointLight_6",0.0f);
+		brokenChipHasBeenRemoved = true;
+		Entity_SetActive("ToolArea_1", true);
+		Sound_CreateAtEntity("sound_elevator_button", "Entities_Station/object/memchip_holder/memchip_holder_latch_open", "theta_panel_elevator_1", 0.0f, false, 2.0f);
+		Sound_CreateAtEntity("sound_elevator_button1", "Entities_Station/spots/sparks/tiny_sparks_oneshot", "theta_panel_elevator_1", 0.0f, false, 2.0f);
+		Sound_Stop("Sound_button_hum",0.1f);
+		Map_AddTimer("timer_ElevatorRoomOpen",1.125f,"timer_ElevatorRoomOpen");
+	}
+	
+	void timer_ElevatorRoomOpen(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_elevator_button3", "Entities_Station/tech/terminal_beeps/terminal_computer_granted", "door_elevatorroom_02", 0.0f, false, 2.0f);
+		Button_SetLocked("door_elevatorroom_*",false,true);
+	}
+	
+	bool OfficeLightScare(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		OfficeLightScare("");
+		return false;
+	}
+	
+	bool TriggerArea_office1_scare(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Map_AddTimer("timer_office1_scare",3.1f,"timer_office1_scare");
+		Lamp_SetFlickerActive("officeshutter_1_1",true);
+		Light_SetBrightness("SpotLight_13",0.0f);
+		return false;
+	}
+	
+	void timer_office1_scare(const tString &in asTimer)
+	{
+		Lamp_SetLit("officeshutter_1_1",false,true);
+		Button_SetLocked("officeshutter_1_panel",false,true);
+	}
+	
+	
+	
+	bool isPlayerinArea2 = false;
+	
+	bool EnterArea2(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		enterArea2Checks();
+		
+		AddMonstersToWorld();
+		
+		isPlayerinArea2 = true;
+		
+		return true;
+	}
+	
+	void enterArea2Checks()
+	{
+		if(Entity_IsActive("puppet_1_1") == true)
+		{
+			Entity_SetActive("puppet_1_1", false);
+			Entity_SetActive("puppet_1_1", false);
+		}
+	
+	}
+	
+	
+	bool ExitArea2(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if (isPlayerinArea2 == true){
+		
+			isPlayerinArea2 = false;
+			Agent_SetAutoDisableWhenOutOfSightActive("puppet_2_1",true,1.0F);
+			Agent_SetAutoDisableWhenOutOfSightActive("puppet_2_2",true,1.0F);
+		}
+		return true;
+	}
+
+
+
+	bool EndStage(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Map_AddTimer("timer_TryToChangeLevel",0.0f,"timer_TryToChangeLevel");
+		
+		return true;
+	}
+	
+	void timer_TryToChangeLevel(const tString &in asTimer)
+	{
+		if (hasElevatorBeenClosedFinally == true)
+		{
+			Map_AddTimer("timer_EndLevel",2.0f,"timer_EndLevel");
+		}
+		else
+		{
+			Map_AddTimer("timer_TryToChangeLevel",0.1f,"timer_TryToChangeLevel");
+		}
+		
+	}
+	
+	void timer_EndLevel(const tString &in asTimer)
+	{
+		Map_ChangeMap("02_under.hps","PlayerStartArea_1","","");
+	}
+	
+	
+//---------------------------------------------------
+	 
+		 /*Put any variables that are only used Terminal here.*/
+			int MainTerminalActivated = 0;
+		 //-------------------------------------------------------
+	 
+		 /*Put any functions that are only used Terminal here.*/
+		 
+ //-------------------------------------------------------	 
+ 
+	
+ //-------------------------------------------------------
+	void panel_infoTrain1(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_Info");
+		
+		
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		//StationGuiBG_Taskbar("");
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+			
+		cImGuiLabelData AREA;
+		cImGuiLabelData STATUS;
+
+		AREA.mFont.mvSize = cVector2f(100, 100);
+		STATUS.mFont.mvSize = cVector2f(150, 150);
+		
+		//AREA.mColorText = cVector2f(100, 100);
+		
+		ImGui_DoImage(cImGuiGfx("screen_subway.tga"), cVector3f(300, 50, 0), cVector2f(400, 400));
+
+		ImGui_DoLabelExt("TRAM_1", AREA, cVector3f(350, 400, 0));
+		ImGui_DoLabelExt("INACTIVE", STATUS, cVector3f(300, 500, 0));
+	}
+ //-------------------------------------------------------
+	void panel_infoTrain2(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_Info");
+		
+		
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		//StationGuiBG_Taskbar("");
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+			
+		cImGuiLabelData AREA;
+		cImGuiLabelData STATUS;
+
+		AREA.mFont.mvSize = cVector2f(100, 100);
+		STATUS.mFont.mvSize = cVector2f(150, 150);
+		
+		//AREA.mColorText = cVector2f(100, 100);
+		
+		ImGui_DoImage(cImGuiGfx("screen_subway.tga"), cVector3f(300, 50, 0), cVector2f(400, 400));
+
+		ImGui_DoLabelExt("TRAM 2", AREA, cVector3f(350, 400, 0));
+		ImGui_DoLabelExt("ACTIVE", STATUS, cVector3f(300, 500, 0));
+	}
+ //-------------------------------------------------------	
+	void panel_infoElevator(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_Info");
+		
+		
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		//StationGuiBG_Taskbar("");
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+			
+		cImGuiLabelData AREA;
+		cImGuiLabelData STATUS;
+
+		AREA.mFont.mvSize = cVector2f(100, 100);
+		STATUS.mFont.mvSize = cVector2f(150, 150);
+		
+		//AREA.mColorText = cVector2f(100, 100);
+		
+		ImGui_DoImage(cImGuiGfx("screen_elevator.tga"), cVector3f(300, 50, 0), cVector2f(400, 400));
+
+		ImGui_DoLabelExt("ELEVATOR", AREA, cVector3f(350, 400, 0));
+		//ImGui_DoLabelExt("INACTIVE", STATUS, cVector3f(275, 500, 0));
+	}
+	
+		void medroom_onGui(const tString&in asEntityName, float afTimeStep)
+		{
+			ImGui_SetTransCategory("Terminal_Chiproom");
+			StationGuiBG_Scanlines();
+			if (StationGui_DrawAndCheckErrors()) return;
+		}
+	
+	////////////////////////////
+	//Screen for power box
+ //-------------------------------------------------------	
+	
+	void panel_powerbox(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_PowerBox");
+		
+		
+		StationGuiBG_Scanlines();
+		//StationGuiBG_Backdrop();
+		//StationGuiBG_Taskbar("");
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+			
+		cImGuiLabelData AREA;
+		cImGuiLabelData STATUS;
+		cImGuiLabelData CHIP;
+
+		AREA.mFont.mvSize = cVector2f(80, 80);
+		STATUS.mFont.mvSize = cVector2f(100, 100);
+		CHIP.mFont.mvSize = cVector2f(50, 50);
+		
+		//ImGui_DoImage(cImGuiGfx("mods\ideamod\graphics\screen_subway.tga"), cVector3f(450, 100, 0), cVector2f(100, 100));
+		
+	}
+ //-------------------------------------------------------	
+ 
+ 		float DelayValue(float afValue, float afStartValue, float afEndValue)
+		{
+			return cMath_Clamp((afValue-afStartValue)/(afEndValue-afStartValue), 0, 1.0f);
+		}
+ 
+ 	// added above -> // bool bFreezerChipInserted = false;  bFreezerChipInteracted
+	bool bFreezerTerminalBool = false;
+	
+	bool btFreezerMain_working = false;
+	
+	float aSinFeeder = 0.0f;
+	float aSinFeederSlow = 0.0f;
+	
+	void computer_panel_freezer_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_Freezer");
+
+		cImGuiLabelData labelData;
+		labelData.mFont.mvSize = cVector2f(20);
+		ImGui_SetDefaultLabel(labelData);
+		
+		cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+		textFrame.mColorBase = cColor(0,0,0,0);
+		ImGui_SetDefaultTextFrame(textFrame);
+		
+		///////////////////////////////////
+		// Data
+		cImGuiWindowData window = StationGui_CreateDefaultWindowData();
+		window.mFont.mvSize = 28;
+		window.SetLabelPadding(0,15.0f,0,10.0f);
+		window.SetPadding(20.0f, 40.0f, 20.0f, 40.0f);
+		
+		cImGuiLabelData boldLabel = ImGui_GetDefaultLabel();
+		boldLabel.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large_Bold));
+		
+		cImGuiGaugeData gauge = StationGui_CreateDefaultGaugeData();
+		
+		StationGuiBG_Backdrop("background/background_logo_pathosstation", cVector2f(0.05, 0.05), 0.75);
+		StationGuiBG_Scanlines();
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+		
+		if (bFreezerChipInserted == false)
+		{
+			StationGui_BigStatusMessage_Old("TechTermLocked", gStationGuiColor_Warning, 0.875);
+			return;
+		}
+		
+		
+		if (bFreezerChipInserted == true && ImGui_GetStateBool("Unlocked",false) == false)
+		{		
+				if (StationGui_LoadingWindow("ComputerApp_Freezer_Title", "ComputerApp_Freezer_Dialog_Title", "ComputerApp_Freezer_Dialog_Text", 5.0f, false, cVector2f(0.75, 0.25), 1.5f))
+				{
+					ImGui_SetStateBool("Unlocked", true);
+				}
+		return;
+		}
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_FreezerLoading);
+		bool bBackButton = false;
+		
+		switch(lActiveApp)
+            {
+                case eComputerTerminalApp_FreezerLoading:
+				
+				aSinFeeder = (aSinFeeder + 0.5f);
+				aSinFeederSlow = (aSinFeederSlow + 0.01f);
+				
+				if(aSinFeeder >= 25565.0f)
+				{
+					aSinFeeder = 0;
+				}
+				
+				if(aSinFeederSlow >= 25565.0f)
+				{
+					aSinFeederSlow = 0;
+				}
+					
+					if(bFreezerTerminalBool == false)
+					{
+						Sound_Stop("freezer_terminal_loading", 0.1f);
+						Sound_CreateAtEntity("freezer_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_ granted", asEntityName, 0.0f, false, 1.0f); 
+						fBreakLab1LabDoor();
+						Lamp_SetLit("freezer_lamp_red",false,true);
+						Lamp_SetLit("freezer_lamp_green",true,true);
+						Entity_SetActive("TriggerArea_FreeezerDoors", true);
+						bFreezerTerminalBool = true;
+						
+						//////////////////
+						// Setup timings
+						if (ImGui_GetStateInt("BootStarted", 0)==0)
+						{
+							ImGui_SetStateInt("BootStarted", 1);
+
+							ImGui_SetStateFloat("Compressor", 0);
+							ImGui_AddTimer("CompressorStart", 7);
+			
+							ImGui_SetStateFloat("temperature", 0);
+							ImGui_AddTimer("temperatureStart", 4);
+			
+							ImGui_SetStateFloat("Coolant", 0);
+							ImGui_AddTimer("CoolantStart", 0.1);
+			
+							ImGui_SetStateInt("CommSystems", 0);
+							ImGui_AddTimer("CommStart", 8);
+			
+							ImGui_AddTimer("UnlockingStart", 9.5);
+						}
+					}
+					
+					//////////////////////////////////
+					// Timers for starting subsystems
+					if (ImGui_TimerOver("CompressorStart"))
+					{
+						ImGui_FadeStateFloat("Compressor", 1, 3, eEasing_QuadIn);
+					}
+					if (ImGui_TimerOver("temperatureStart"))
+					{
+						ImGui_FadeStateFloat("temperature", 1, 4, eEasing_QuartIn);
+					}
+					if (ImGui_TimerOver("CoolantStart"))
+					{
+						ImGui_FadeStateFloat("Coolant", 1, 6);
+					}
+					if (ImGui_TimerOver("CommStart"))
+					{
+						btFreezerMain_working = true;
+					}
+					if (ImGui_TimerOver("UnlockingStart"))
+					{
+						ImGui_SetStateInt("Doors", 0);
+					}
+					
+		///////////////////////////////////
+		// Coolant window
+		{
+			float fCooling = ImGui_GetStateFloat("Coolant", 0);
+					
+			gauge.mOrientation = eImGuiGaugeOrientation_Vert;
+			gauge.mGfxFill.mColor = cColor(0.2, 0.2, 1,2);
+			
+			ImGui_DoWindowStart("Coolant", window, ImGui_NrmPos(cVector3f(.5f, 0.35f, 1.0f)), ImGui_NrmSize(cVector2f(0.38f, 0.325f)), true);
+			{
+				/////////////////////////////////////////////
+				// 2 vertical gauge bars
+				cVector2f vBarSize = ImGui_NrmSizeGroup(cVector2f(0.4f, 0.85f));
+				ImGui_LayoutBegin(eImGuiLayout_X, cVector3f(0,0,1.0f), cVector2f_MinusOne, cVector2f(vBarSize.x*0.35f,0));
+						
+				float fHeight = DelayValue(fCooling, 0, 0.6);				
+				ImGui_DoGauge(gauge, fHeight-0.11f+(cMath_Cos(aSinFeederSlow)/20.0f), cVector3f_Zero, vBarSize);
+				fHeight = DelayValue(fCooling, 0.4, 1);
+				ImGui_DoGauge(gauge, fHeight-0.34f+(cMath_Cos(aSinFeederSlow+2.5f)/11.0f), cVector3f_Zero, vBarSize);
+				
+				ImGui_LayoutEnd();
+			}
+			ImGui_DoWindowEnd();
+		}
+		
+		///////////////////////////////////
+		// Compressor window
+		{
+			float fCompressor = ImGui_GetStateFloat("Compressor", 0);
+					
+			gauge.mOrientation = eImGuiGaugeOrientation_Hori;
+			gauge.mGfxFill.mColor = cColor(0.6f + 0.1*(1-fCompressor), 0.2 + 0.4*fCompressor ,0.1f+0.1f*fCompressor,1);
+			
+			ImGui_DoWindowStart("Compressor", window, ImGui_NrmPos(cVector3f(0.05f, 0.06f, 1.0f)), ImGui_NrmSize(cVector2f(0.4f, 0.4f)), true);
+			{
+				cVector2f vBarSize = ImGui_NrmSizeGroup(cVector2f(0.95f, 0.2f));
+				
+				ImGui_LayoutBegin(eImGuiLayout_Y, cVector3f(0,0,1.0f), cVector2f_MinusOne, cVector2f(0,vBarSize.y*0.55f));
+				
+				////////////////////////////////////////
+				// 3 horizontal gauge bars
+				float fFillSize = DelayValue(fCompressor, 0, 0.25);
+				ImGui_DoGauge(gauge, fFillSize-0.25f+(cMath_Sin(aSinFeeder)/12), cVector3f_Zero, vBarSize);
+				
+				fFillSize = DelayValue(fCompressor, 0.35, 0.6);
+				ImGui_DoGauge(gauge, fFillSize-0.34f+(cMath_Cos(aSinFeeder+2.5f)/11.0f), cVector3f_Zero, vBarSize);
+				
+				fFillSize = DelayValue(fCompressor, 0.65, 1);
+				ImGui_DoGauge(gauge, fFillSize-0.66f+(cMath_Sin(aSinFeeder+45.6f)/28.0f), cVector3f_Zero, vBarSize);
+			
+				ImGui_LayoutEnd();
+			}		 
+			ImGui_DoWindowEnd();
+		}
+		///////////////////////////////////
+		// temperature window
+		{
+			float fTemp = ImGui_GetStateFloat("temperature", 0);
+			
+			window.SetPadding(0.0f, 10.0f, 10.0f, 0.0f);
+					
+			ImGui_DoWindowStart("temperature", window, ImGui_NrmPos(cVector3f(0.5f, 0.06f, 1.0f)), ImGui_NrmSize(cVector2f(0.4f, 0.2f)), true);
+			{	
+				//////////////////////////////////////////
+				// RPM label
+				cVector3f vLabelPos = ImGui_NrmPosGroup(cVector3f(0.7f, 0.14f, 0.1f));
+				
+				ImGui_SetModColorMul(cColor(0.6f + 0.1*(fTemp*0.3), 0.2 + 0.4*fTemp ,0.1f+0.1f*fTemp,1));
+				ImGui_SetAlignment(eImGuiAlign_TopRight);
+				ImGui_SetTransCategory("");
+				ImGui_DoLabel("" + -cMath_RoundToInt((fTemp*76)+cMath_Sin(aSinFeederSlow * 0.84)*1.5), vLabelPos, cVector2f_MinusOne, 1.5f);
+				ImGui_SetTransCategory("Terminal_Freezer");
+				ImGui_SetAlignment(eImGuiAlign_TopLeft);
+				ImGui_DoLabel("C", vLabelPos, cVector2f_MinusOne, 0.75f);
+				
+				ImGui_ResetModifiers();
+			}
+			ImGui_DoWindowEnd();
+		}
+		
+		//////////////////////////////////
+		// Communications window
+		{								
+			ImGui_DoWindowStart("system", window, ImGui_NrmPos(cVector3f(0.05f, 0.475f, 1.0f)), ImGui_NrmSize(cVector2f(0.4f, 0.2f)), true);
+			{		
+				bool bOnline = ImGui_GetStateInt("CommSystems", 0) == 1;
+				tString sStatusText = "working";
+				ImGui_SetModColorMul(bOnline ? cColor_Green : cColor_Red);
+				ImGui_SetAlignment(eImGuiAlign_CenterCenter);
+				cVector2f fPrevFontSize = boldLabel.mFont.mvSize;
+				ImGui_ResizeFontToFit(ImGui_Translate(sStatusText), boldLabel.mFont, ImGui_GetCurrentGroupSize().x*0.9, 1.125f);
+				ImGui_DoLabelExt(sStatusText, boldLabel, ImGui_NrmPosGroup(cVector3f(0.5f, 0.4f, 1.0f)), cVector2f_MinusOne, 1.125f);
+				boldLabel.mFont.mvSize = fPrevFontSize;
+				ImGui_SetAlignment(eImGuiAlign_TopLeft);
+				ImGui_SetModColorMul(cColor_White);
+			}		 
+			ImGui_DoWindowEnd();
+		}
+		
+		//////////////////////////////////
+		// Doors
+		{								
+			ImGui_DoWindowStart("Door", window, ImGui_NrmPos(cVector3f(0.2f, 0.70f, 1.0f)), ImGui_NrmSize(cVector2f(0.6f, 0.2f)), true);
+			{		
+				int lDoorState = ImGui_GetStateInt("Doors", -1);
+				float fMaxTextWidth = ImGui_GetCurrentGroupSize().x*0.9;
+				
+				if (sFreezerDoorOpen == false)
+				{
+					ImGui_SetModColorMul(gStationGuiColor_Highlight2);
+					ImGui_SetAlignment(eImGuiAlign_CenterCenter);
+					
+					float fTextWidth = ImGui_ResizeFontToFit(ImGui_Translate("Closed"), boldLabel.mFont, fMaxTextWidth, 1.125f);
+					ImGui_DoLabelExt("Closed", boldLabel, ImGui_NrmPosGroup(cVector3f(0.5f, 0.4f, 1.0f)), cVector2f(fTextWidth, -1), 1.125f);
+				}
+				else if (sFreezerDoorOpen == true)
+				{
+					ImGui_SetModColorMul(cColor_Green);
+					ImGui_SetAlignment(eImGuiAlign_CenterCenter);
+					
+					float fTextWidth = ImGui_ResizeFontToFit(ImGui_Translate("Opened"), boldLabel.mFont, fMaxTextWidth, 1.125f);
+					ImGui_SetTextOverride(ImGui_Translate("Opened"));
+					ImGui_DoLabelExt("", boldLabel, ImGui_NrmPosGroup(cVector3f(0.5f, 0.4f, 1.0f)), cVector2f(fTextWidth, -1), 1.125f);
+					ImGui_ClearTextOverride();
+				}
+
+				ImGui_SetAlignment(eImGuiAlign_TopLeft);
+				ImGui_SetModColorMul(cColor_White);
+			}		 
+			ImGui_DoWindowEnd();
+		}
+		
+					
+
+					
+                    bBackButton = false;
+				break;
+            }
+            StationGui_BackButton(bBackButton);
+	}
+	
+	
+	
+	
+	bool LampToggle = false;
+	void security_office_terminal(const tString&in asEntityName, float afTimeStep)
+	{
+			ImGui_SetTransCategory("Security_Computer");
+	
+			StationGuiBG_Scanlines();
+			StationGuiBG_Backdrop();
+			
+			StationGuiBG_Taskbar("theta");
+			
+			if (StationGui_DrawAndCheckErrors()) return;
+			
+			
+			
+            int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu);
+            bool bBackButton = true;
+            switch(lActiveApp)
+            {
+                case eComputerTerminalApp_MainMenu:
+				if(LampToggle==false){
+					  StationGui_AddApp("ComputerApp_Lobby_Security_Lockdown_Title",true,eComputerTerminalApp_LiftLockdown);
+				}else{
+					 StationGui_AddApp("ComputerApp_Lobby_Security_Lockdown_Log_Title",true,eComputerTerminalApp_LiftLockdown);
+				}
+                  //StationGui_Numpad("login", 4, 0.2, ImGui_NrmPos(cVector3f(0.125, 0.1, 1.5)), ImGui_NrmSizeGroup(cVector2f(0.75, 0.675)));
+                    StationGui_MainMenu();
+                    bBackButton = false;
+				break;
+			
+                case eComputerTerminalApp_LiftLockdown:
+                    StationGui_TextReaderSingle("ComputerApp_Lobby_Security_Lockdown_Log_Title", "ComputerApp_Lobby_Security_Lockdown_Text");
+                    bBackButton = true;
+
+					if(LampToggle == false)
+					{
+						LampToggle = true;	
+						Music_Play("01_02_enterfuseroom",0.5f, false, eMusicPrio_BigEvent);
+						SequenceMainReveal("");
+						
+					}
+						
+				break;
+		
+            }
+		
+            StationGui_BackButton(bBackButton);
+
+	}
+	
+	bool RedAreaLockdownLifted = false;
+
+	void monitor_RedArea_Security_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Security_Computer");// sets Language
+
+		StationGuiBG_Scanlines();//adds scanlines
+		StationGuiBG_Backdrop();//adds logo
+		StationGuiBG_Taskbar("theta");//adds logo on bottom
+			
+		if (StationGui_DrawAndCheckErrors()) return; //stuff
+		
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu_RedArea);
+		bool bBackButton = true;
+			
+            switch(lActiveApp)
+            {
+				
+			//main menu
+                case eComputerTerminalApp_MainMenu_RedArea:
+				if(RedAreaLockdownLifted==false){
+					  StationGui_AddApp("ComputerApp_RedArea_Security_Lockdown_Title",true,eComputerTerminalApp_LiftLockdown_RedArea);//lift lockdown button
+				}else{
+					 StationGui_AddApp("ComputerApp_RedArea_Security_Log_Title",true,eComputerTerminalApp_LiftLockdown_RedArea);//view log button
+				}
+                 
+				   StationGui_AddApp("ComputerApp_RedArea_Security_Lore_Title",true,eComputerTerminalApp_SecurityLog);//view security log button
+                   StationGui_MainMenu();
+                   bBackButton = false;
+				break;
+			
+			//log window
+                case eComputerTerminalApp_LiftLockdown_RedArea:
+                    StationGui_TextReaderSingle("ComputerApp_RedArea_Security_Log_Title", "ComputerApp_RedArea_Security_Log_Text"); //adds window title and text
+
+					RedAreaLockdown();
+                    bBackButton = true;
+
+				break;
+				
+				 case eComputerTerminalApp_SecurityLog:
+                    StationGui_TextReaderSingle("ComputerApp_RedArea_Security_Lore_Title", "ComputerApp_RedArea_Security_Lore_Text"); //add spoopy lore log
+                    bBackButton = true;
+
+				break;
+		
+            }
+		
+            StationGui_BackButton(bBackButton);
+	}
+	
+	void RedAreaLockdown()
+	{
+		if (RedAreaLockdownLifted == false){
+			Entity_SetActive("powersound_1",true);
+			Sound_Play("powersound_1",0.0f,false);
+		}
+		UnlockLabDoors();
+		UpdateLockedDoorStates();
+		RedAreaLockdownLifted = true;
+	}
+
+	void monitor_RedArea_Lore_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Security_Computer");// sets Language
+
+		StationGuiBG_Scanlines();//adds scanlines
+		StationGuiBG_Backdrop();//adds logo
+		StationGuiBG_Taskbar("theta");//adds logo on bottom
+			
+		if (StationGui_DrawAndCheckErrors()) return; //stuff
+		
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu_RedArea);
+		bool bBackButton = true;
+			
+            switch(lActiveApp)
+            {
+				
+			//main menu
+                case eComputerTerminalApp_MainMenu_RedArea:
+                  
+				  StationGui_AddApp("ComputerApp_RedArea_Security_Lore_Title",true,eComputerTerminalApp_SecurityLog);//view security log button
+				   
+                    StationGui_MainMenu();
+                    bBackButton = false;
+				break;
+			
+			
+			//log window
+                case eComputerTerminalApp_SecurityLog:
+                    StationGui_TextReaderSingle("ComputerApp_RedArea_Security_Lore_Title", "ComputerApp_RedArea_Security_Lore_Text"); //add spoopy lore log
+                    bBackButton = true;
+		
+				break;
+				
+		
+            }
+		
+            StationGui_BackButton(bBackButton);
+	}
+	
+	
+	 //} END Terminal *Name Of Terminal*
+	 //} END TERMINALS
+	 
+	//-------------------------------------------------------
+
+	void Tram_door_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Sound_Stop("sound_tram_door_move",0.0f);
+			Sound_CreateAtEntity("sound_tram_door_openfully", "Entities_Station/doors/tunnel_hatch/tunnel_hatch_handle", "Tram_door", 0.0f, false, 1.0f);
+		}
+	}
+
+	cSequenceStatesData seqIntro;
+		void SeqIntro(const tString &in asTimer)
+		{
+			Sequence_Begin("SeqIntro", seqIntro);
+			
+				if(Sequence_DoStepAndWait(10.0f))
+				{
+					Player_SetLookSpeedMul(0.125f);
+					Player_SetMoveSpeedMul(0);
+				}
+				
+				else if(Sequence_DoStepAndWait(8.0f))
+				{
+					cLux_AddDebugMessage("Fade in");
+					Sound_FadeGlobalVolume(1.0f, 8.0f, eSoundEntryType_WorldAll);
+					Sound_FadeGlobalVolume(1.0f, 8.0f, eSoundEntryType_GuiWorld);
+					Effect_ImageTrail_FadeOut(imagetraideID, 25.0f);
+					Effect_Fade_In(8.0f);
+					Sound_CreateAtEntity("WakeUp","00_05_apartment2/SFX/bed_awaken","Player",0,false);
+					CameraAnimationNode_SetAutoMove("AbyssWakeUpAnim_1", 0.5);
+					CameraAnimation_Begin("AbyssWakeUpAnim", "", true);
+				}
+				
+				else if(Sequence_DoStepAndWait(4.0f))
+				{
+					Player_SetLookSpeedMul(0.65f);
+					Player_SetMoveSpeedMul(1);
+				}
+				
+				else if(Sequence_DoStepAndWait(2.0f))
+				{
+					PauseMenu_Enabled(true);
+					Player_ShowCrossHairIcons(true);
+					Player_SetJumpDisabled(false);
+					Player_SetLookSpeedMul(1.0f);
+				}
+				
+				else if(Sequence_DoStepAndWait(1.0f))
+				{
+					Sound_CreateAtEntity("sound_tram_door_jingle", "02_05_theta/sweeteners/server_lever/start_beep", "Tram_door", 0.0f, false, 5.0f);
+					Music_Play("01_01_awakendrone", 0.7f, false, eMusicPrio_SceneAmb);
+				}
+				else if(Sequence_DoStepAndWait(1.0f))
+				{
+					PhysicsSlideDoor_AutoMoveToState("Tram_door",1);
+					Sound_CreateAtEntity("sound_tram_door_move", "Entities_Station/doors/tunnel_hatch/tunnel_hatch_open", "Tram_door", 0.0f, false, 1.0f);
+				}
+				
+				
+			Sequence_End();
+		}
+
+		cSequenceStatesData mOfficeLightScare;
+		void OfficeLightScare(const tString &in asTimer)
+		{
+		
+			Sequence_Begin("OfficeLightScare", mOfficeLightScare);
+				
+				if (Sequence_DoStepAndWait(0.2f))
+				{
+					Entity_SetActive("Sound_officescare",true);
+					Sound_Play("Sound_officescare",0.0f,false);
+				}
+				
+				if (Sequence_DoStepAndWait(3))
+				{
+					Lamp_SetLit("Office_Bluelamp*",false,true);
+					Lamp_SetLit("office_lamps_ceiling_*",false,true);
+					Lamp_SetFlickerActive("Office_Bluelamp*",true);
+					Lamp_SetFlickerActive("office_lamps_ceiling_*",true);
+				}
+				
+				else if (Sequence_DoStepAndWait(7))
+				{
+					Lamp_SetLit("Office_Bluelamp*",true,true);
+					Lamp_SetLit("office_lamps_ceiling_*",true,true);
+				}
+				
+				else if (Sequence_DoStepAndWait(7))
+				{
+					Lamp_SetFlickerActive("Office_Bluelamp*",false);
+					seqOfficeLights("");
+				}
+			Sequence_End();
+		}
+
+		bool Trigger_seal_open_lab1(const tString &in asParent, const tString &in asChild, int alState)
+		{
+
+				testtriggger = true;
+				SlideDoor_SetClosed("Seal_lab_1_door",false,false);
+			return true;
+		}
+		
+		bool CC_needacid_diag(const tString &in asParent, const tString &in asChild, int alState)
+		{
+
+			Voice_Play("NeedChemical", -1, "", 10);
+			return false;
+		}
+
+		 //-------------------------------------------------------
+
+		bool Trigger_logoBlink(const tString &in asParent, const tString &in asChild, int alState)
+		{
+			Lamp_SetFlickerActive("spot_small_1",true);
+			Map_AddTimer("timer_spot_small_1",1.0f,"timer_spot_small_1");
+			return false;
+		}
+		
+		void timer_spot_small_1(const tString &in asTimer)
+		{
+			
+			Lamp_SetFlickerActive("spot_small_1",false);
+		}
+		
+		
+		bool TriggerArea_music_1(const tString &in asParent, const tString &in asChild, int alState)
+		{
+			Music_Play("01_01_enterdarkness", 0.2f, false, eMusicPrio_SceneAmb);
+			return false;
+		}
+		
+		bool trigger_tunnel_lights(const tString &in asParent, const tString &in asChild, int alState)
+		{
+			SeqTunnelLight("");
+			return false;
+		}
+		
+		cSequenceStatesData seqTunnelLight;
+		void SeqTunnelLight(const tString &in asTimer)
+		{
+			float lampStepTime = 3.0f;
+			Sequence_Begin("SeqTunnelLight", seqTunnelLight);
+			
+				if     (Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_1*" ,true,true);Sound_CreateAtEntity("tls01", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_1_1" , 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_2*" ,true,true);Sound_CreateAtEntity("tls02", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_2_1" , 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_3*" ,true,true);Sound_CreateAtEntity("tls03", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_3_1" , 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_4*" ,true,true);Sound_CreateAtEntity("tls02", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_4_1" , 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_5*" ,true,true);Sound_CreateAtEntity("tls02", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_5_1" , 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_6*" ,true,true);Sound_CreateAtEntity("tls02", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_6_1" , 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(0.7f)){Light_SetBrightness("tunnel_white_light_*",0.25f);Lamp_SetFlickerActive("tunnel_white_lamp_*",false);Sound_CreateAtEntity("billion", "Entities_Station/tech/plug/plug_in", "tunnel_white_light_7", 0.0f, false, 3.0f);}
+				
+			Sequence_End();
+		}
+}

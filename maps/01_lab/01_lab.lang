@@ -1,0 +1,27 @@
+<LANGUAGE>
+    <CATEGORY Name="Voices_lab">
+        <Entry Name="lab/powerup_where am i_001_protag_001">Hello? Where am I?</Entry>
+        <Entry Name="lab/powerup_where am i_002_friend_001">Hello? Wait, are you at station 3?</Entry>
+        <Entry Name="lab/powerup_where am i_003_protag_001">Um, I guess, are you here?</Entry>
+        <Entry Name="lab/powerup_where am i_004_friend_001">No, I&apos;m at relay 12. That sector is abandoned, how did you get there?</Entry>
+        <Entry Name="lab/powerup_where am i_005_protag_001">The train? Listen I just want to get out of here.</Entry>
+        <Entry Name="lab/powerup_where am i_006_friend_001">Well ok. Try the elevator down the hall. It should take you to the lower levels, you can leave from there.</Entry>
+        <Entry Name="lab/powerup_where am i_007_protag_001">Ok Thanks.</Entry>
+        <Entry Name="lab/last_action">[Someone is breathing in distress and alarms are going off]</Entry>
+        <Entry Name="lab/elevatorneedfix_elevatorbroken_001_protag_001">Hey uh, The elevators broken.</Entry>
+        <Entry Name="lab/elevatorneedfix_elevatorbroken_002_friend_001">Let me do a scan.</Entry>
+        <Entry Name="lab/elevatorneedfix_elevatorbroken_003_friend_001">Ok yea it says it needs a new chip on the button.</Entry>
+        <Entry Name="lab/elevatorneedfix_elevatorbroken_004_protag_001">Damn, Where&apos;s that.</Entry>
+        <Entry Name="lab/elevatorneedfix_elevatorbroken_005_friend_001">There&apos;s one in lab 2, You should check it out.</Entry>
+        <Entry Name="lab/lab2broken_lab2arrivebroken_001_protag_001">Damn it! This ones broken too!</Entry>
+        <Entry Name="lab/lab2broken_lab2arrivebroken_002_friend_001">Damn, Well I guess this place is abandoned for a reason.</Entry>
+        <Entry Name="lab/lab2broken_lab2arrivebroken_003_friend_001">Listen, there has to be a replacement in Lab 1.</Entry>
+        <Entry Name="lab/lab2broken_lab2arrivebroken_004_friend_001">You should head there...</Entry>
+        <Entry Name="lab/lab1diag_lab1redirect_001_friend_001">This is lab 1, You need to go to lab 2.</Entry>
+        <Entry Name="lab/lab2fix_lab2arrivefixed_001_protag_001">Ok. I got the replacement for the door to the lab.</Entry>
+        <Entry Name="lab/lab2fix_lab2arrivefixed_002_friend_001">Ok, Look for the chip for the elevator. Then you can get out of here.</Entry>
+        <Entry Name="lab/lab2fix_lab2arrivefixed_003_protag_001">Will do....</Entry>
+        <Entry Name="lab/needgoop_needchemical_001_protag_001">Hmm, Looks like I could free this chip if I had some kind of acid...</Entry>
+        <Entry Name="Datamine_datamine_001_character_001">*Datamine Text*</Entry>
+    </CATEGORY>
+</LANGUAGE>

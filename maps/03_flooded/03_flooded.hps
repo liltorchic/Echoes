@@ -1,0 +1,741 @@
+#include "interfaces/Map_Interface.hps"
+#include "base/Inputhandler_Types.hps"
+
+
+#include "helpers/helper_map.hps"
+#include "helpers/helper_props.hps"
+#include "helpers/helper_effects.hps"
+#include "helpers/helper_audio.hps"
+#include "helpers/helper_imgui.hps"
+#include "helpers/helper_sequences.hps"
+#include "helpers/helper_game.hps"
+#include "helpers/helper_modules.hps"
+#include "helpers/helper_ai.hps"
+#include "helpers/helper_player.hps"
+
+#include "helper_custom_depth.hps"
+#include "custom_depth/helper_custom_depth_audio.hps"
+
+#include "helper_imgui_station_apps_common.hps"
+#include "helper_imgui_station.hps"
+#include "helper_imgui_station_app_photoviewer.hps"
+#include "helper_imgui_station_app_error.hps"
+#include "helper_imgui_station_app_mail.hps"
+#include "helper_imgui_station_app_audioplayback.hps"
+#include "helper_imgui_station_app_doorlocks.hps"
+#include "helper_imgui_station_app_numpad.hps"
+
+//--------------------------------------------------
+ 
+/*Place any global values here. These must be const variables as they will not be saved*/
+/*This is also the place for enums and classes, but these should be avoided whenever possible*/
+ 
+//--------------------------------------------------
+ 
+	enum eComputerTerminalApp
+	{
+		eComputerTerminalApp_MainMenu = 1,
+		eComputerTerminalApp_BOIS=-1,
+		eComputerTerminalApp_Loading=0,
+		eComputerTerminalApp_ActivateAirlock = 2,
+		eComputerTerminalApp_omni=3,
+		eComputerTerminalApp_intermed_idle = 10,
+		eComputerTerminalApp_intermed_noSuit = 11,
+		eComputerTerminalApp_intermed_suitLoad = 12,
+		eComputerTerminalApp_intermed_suitOK = 13,
+		eComputerTerminalApp_intermed_doorError = 14,
+		eComputerTerminalApp_intermed_idleOff = 15,
+	} 
+ 
+class cScrMap : iScrMap
+{
+	//--------------------------------------------
+ 
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// ==============
+	// MAIN CALLBACKS
+	// ==============
+	//{///////////////////////////////////////////////////////////////////////////////////////
+ 
+	//-------------------------------------------------------
+ 
+	////////////////////////////
+	// Set up map environment
+	
+
+	void Setup()
+	{
+		SetupPlayer();
+		Map_Preload("04_outside.hpm");
+		Map_SetPreloadPriority(eWorldStreamPriority_Low);
+		
+			Map_Preset_SetupSkybox("underwater",cColor(0.225f,0.572f,0.641f,1.0f),1.25f);
+			Map_Preset_SetupFog("underwater",true,2.0f,30.0f,0.7f, cColor(0.009f,0.043f,0.042f,1.0f),1.0f,true,true);
+			Map_Preset_SetupSecondaryFog("underwater",false,0.0f,70.0f,0.15f,cColor(0.002f,0.002f,0.002f,0.004f),1.0f);
+			Map_Preset_SetupDirLight("underwater",false,cColor(0.138f,0.505f,0.543f,0.0f),0.5f,cVector3f(0.297f, -0.919f, 0.26f),cColor(0.196f,0.232f,0.242f,0.0f),cColor(0.196f,0.231f,0.243f,0.0f));
+			Map_Preset_SetupToneMapping("underwater",1.0f, 0.5f,3.5f);
+			Map_Preset_SetupColorGrading("underwater","grading_02_02.dds");
+											//0,0.637,1,1               					-0.018	-0.984		0.178												1,1,1,1							0,0,0,0			              
+			Map_Preset_SetupSkybox("abovewater",cColor(0.125f,0.153f,0.145f,0.376f),0.15f);
+			Map_Preset_SetupFog("abovewater",true,10.0f,100.0f,1.0f, cColor(0.126f,0.152f,0.146f,0.376f),1.0f,false,false);
+			Map_Preset_SetupSecondaryFog("abovewater",false,0.0f,0.0f,0.0f,cColor(0.002f,0.002f,0.002f,0.004f),1.0f);
+			Map_Preset_SetupDirLight("abovewater",true,cColor(1.0f,1.0f,1.0f,1.0f),0.001f,cVector3f(0.0f, 0.0f, 0.0f),cColor(0.48f,0.27f,0.0f,0.0f),cColor(0.476f,0.586f,0.554f,0.078f));
+			Map_Preset_SetupToneMapping("abovewater",0.5f,0.75f,3.5f);
+			Map_Preset_SetupColorGrading("abovewater","grading_01_02.dds");
+			
+		int ipath = 1;	
+		while( ipath <= 685 )
+		{
+			Pathfinder_Track_Add("flesher_male_1", "PathNodeArea_" + ipath, 0.0f, 0.5f, "", false);
+
+			ipath++;
+		}
+	}
+	
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run first time starting map
+	void OnStart()
+	{
+		SetupDoorSeals();
+		ParticleSystem_SetActive("PS_airvent_*", false);
+		SlideDoor_SetClosed("slidedoor_start", false, false);
+	}
+	
+	void SetupPlayer(){
+		PlayerHands_SetHandModel_Human();
+		PlayerHands_PreloadHandModel_Diving();
+		Player_SetFootWear("default");
+		Player_SetFootstepSoundsDisabled(false);
+		MAP_SETTINGS_ABOVEWATER();
+	}
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run when entering map
+	void OnEnter()
+	{	
+		if(Player_ToolIsInInventory("omnitool")==true)
+			{
+				Entity_SetActive("omnitool",false);	
+			}
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// Run when leaving map
+	void OnLeave()
+	{
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// The player has died.
+	void OnPlayerKilled(int alRecentDeaths, const tString&in asSource)
+	{
+	}
+
+	//-------------------------------------------------------
+
+	////////////////////////////
+	// To get when player makes input (mostly used for debug)
+	void OnAction(int alAction, bool abPressed) 
+	{
+		if(abPressed==false) return;
+		
+		if(alAction == eAction_Test1)
+		{
+			SwapAirlock();
+		}
+		if(alAction == eAction_Test2)
+		{
+			Entity_SetActive("block_water_*",false);
+			PlayerHands_SetHandModel_Diving();
+			Player_SetFootWear("default");
+			hasDivingSuit = true;
+		}
+		if(alAction == eAction_Test3)
+		{
+			MAP_SETTINGS_UNDERWATER();
+		}
+		if(alAction == eAction_Test4)
+		{
+			MAP_SETTINGS_ABOVEWATER();
+		}
+		if(alAction == eAction_Test0)
+		{
+			Prop_MoveLinearTo("chip_airlock_key","dev1",999.99f,999.99f,0.0f, true,"");
+		}
+		
+	}
+	
+		bool hasAirlockChip = false;
+		bool chipIsInstalled = false;
+		
+		bool chip_airlock_key_OnPickUp(const tString &in asTool)
+		{
+			hasAirlockChip = true;
+			Music_PlayExt("03_02_powergel",false,3.0f,1.0f,0.0f,0.0f,eMusicPrio_BigEvent, false);
+			return true;
+		}
+	
+		bool chip_airlock_key_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+		{
+			if (asEntity == "chip_environment_storage_dock_2" && chipIsInstalled == false) return true;
+			return false;
+		}
+		
+		bool chip_airlock_key_OnUse(const tString &in asTool, const tString &in asEntity)
+		{
+			chipIsInstalled = true;
+			Entity_SetActive("electrical_lchip_lamp_yellow", false);
+			Entity_SetActive("electrical_lchip_lamp_green", true);
+			Entity_SetActive("ToolArea_1", false);
+			Entity_SetActive("chip_fake", true);
+			Player_RemoveTool("chip_airlock_key");
+			Sound_CreateAtEntity("chip_click", "echoes/machine/click6", "chip_environment_storage_dock_2");
+			StationGui_SetActiveApp("diveroom_terminal", eComputerTerminalApp_Loading);
+			Sound_CreateAtEntity("terminal_beep", "Entities_Station/tech/terminal_beeps/omicron_lockdown_puzzle_solve", "diveroom_terminal");
+			
+			return false;
+		}
+		
+	
+	
+	bool Collide_closeStartDoor(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+				SlideDoor_SetClosed("slidedoor_start", true, false);
+		}
+		return false;
+	}
+
+	bool hasDivingSuit = false;
+	
+	void PickupSuit_OnPlayerInteract(const tString &in asEntity)
+	{
+		Effect_Fade_Out(0.66f);
+		Entity_SetActive(asEntity,false);
+		Entity_SetActive("block_water_*",false);
+		PlayerHands_SetHandModel_Diving();
+		Player_SetFootWear("default");
+		hasDivingSuit = true;
+		Map_AddTimer("timer_SuitDirtyWork",0.70f,"timer_SuitDirtyWork");
+		Map_AddTimer("timer_fadeInForSuit",1.5f,"timer_fadeInForSuit");
+		Map_AddTimer("timer_suitAnim",1.75f,"timer_suitAnim");
+		Sound_CreateAtEntity("suitEquip", "Player/ladder/metal/detach", "player");
+	}
+	void timer_SuitDirtyWork(const tString &in asTimer)
+	{
+		Prop_SetActiveAndFade("divingsuit_parts_*",false,0.25f);
+	}
+	
+	void timer_fadeInForSuit(const tString &in asTimer)
+	{
+		Effect_Fade_In(0.70f);
+	}
+	
+	void timer_suitAnim(const tString &in asTimer)
+	{
+		PlayerHands_PlayAnimation("event_look_at_hands_2_1",false,false,0.0f,"",true,1,-1);
+		Music_PlayExt("03_02_powergel",false,4.5f,1.0f,0.15f,0.0f,eMusicPrio_BigEvent, false);
+	}
+	
+	bool player_enterWaterArea(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(!hasDivingSuit && alState == 1)
+		{
+			///tell player to get diving suit
+			Voice_Play("NeedSuit", -1, "", 10);
+			return true;
+		}
+		return true;
+		
+	}
+
+	//-------------------------------------------------------
+	bool airlockIsReady = false;
+	void SwapAirlock()
+	{
+		Lamp_SetLit("lamp_red_*",false,true);
+		Lamp_SetLit("lamp_green_*",true,true);
+		StationGui_SetActiveApp("compterminal_airlockStatus", eComputerTerminalApp_intermed_idle);
+		airlockIsReady = true;
+		
+	}
+	
+	void SetupDoorSeals()
+	{
+		Entity_StopAnimation("DoorSeal_*");
+	}
+	
+	void airlock_lever_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetInteractionDisabled(asEntity,true);
+			SwapAirlock();
+		}
+	}
+	
+	
+	void OnStateChangeDoorSeal(const tString &in asEntity, int alState)
+	{
+		if (alState==1)
+		{
+			tString sSeal = cString_Sub(asEntity,6);
+			cLux_AddDebugMessage("Opening Door Seal:"+sSeal);
+			Entity_PlayAnimation(sSeal, "door_lock_opening",0.1f,false,true,"OnDoorSealOpenCompleted");
+			Entity_SetAnimationPaused(sSeal, "door_lock_opening", false);
+			
+			//////////////////////////////////
+			// Turn off lamp to disable any connected lights and then finally, disable it.
+			//cLux_AddTodoMessage("SCRIPT: Post beta polish on these, make the lights fade before disabling entity");
+			// suggestion : use timer
+			Lamp_SetLit(sSeal+"_Lamp",false,true);
+			Entity_SetActive(sSeal+"_Lamp",false);
+			Light_SetVisible(sSeal+"_Light*",false);
+			
+			/////////////////////////////////////
+			// Disable aux area
+			Entity_SetActive("AuxArea_"+sSeal,false);
+			
+			Button_SetLocked("Door_AirLock_Button_*", false);
+		}
+	}
+	
+	//-------------------------------------------------------
+	
+	void OnDoorSealOpenCompleted(const tString &in asEntityName,  const tString &in asAnimName)
+	{
+		tString sPanel = Entity_GetVarString(asEntityName, "");
+		Button_SetLocked(sPanel, false);
+		Entity_SetActive(asEntityName,false);
+		Entity_SetActive("Handle"+asEntityName, false);
+		Entity_SetActive("Open"+asEntityName, true);
+	}
+	
+	bool TriggerArea_teleportToLiquid(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Player_Teleport("PSA_Liquid",false);
+		}
+		return true;
+	}
+	
+	bool TriggerArea_teleportToFactory(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Player_Teleport("PSA_Factory",false);
+		}
+		return true;
+	}
+	
+	bool Omnitool_placed = false;
+	bool Terminal_unlocked = false;
+
+	
+	bool omnitool_CanBeUsed(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "omnislot_inside" && Omnitool_placed == false) return true;
+		return false;
+	}	
+	
+
+	bool omnitool_OnUse(const tString &in asTool, const tString &in asEntity)
+	{
+		if (asEntity == "omnislot_inside")
+		{
+			Omnitool_placed = true;
+			Entity_SetActive("OmnitoolArea_1", false);
+			Entity_SetActive("omnitool_dummy", true);
+			Player_RemoveTool("omnitool");
+			Sound_CreateAtEntity("start", "Entities_Station/object/server_dial/start", "omnislot_inside", 0.0f, false, 5.5f);
+			if(Omnitool_placed == true && Terminal_unlocked == true){
+				SeqAirlockOpen("");
+			}
+		}
+		return false;		
+	}
+	
+		cSequenceStatesData seqAirlockOpen;
+		void SeqAirlockOpen(const tString &in asTimer)
+		{
+			Sequence_Begin("SeqAirlockOpen", seqAirlockOpen);
+			if (Sequence_DoStepAndWait(2.0f))
+			{
+				Sound_CreateAtEntity("ark_scanner_ark_located", "Entities_Station/tech/terminal_beeps/ark_scanner/ark_scanner_ark_located", "diveroom_terminal");
+			}
+			
+			if (Sequence_DoStepAndWait(0.2f))
+			{
+				Sound_CreateAtEntity("airlock_transport_station_door_open", "level_amb_shared_machines/airlock/airlock_transport_station_door_open", "slidedoor_airlock_1");
+			}
+			
+			if (Sequence_DoStepAndWait(0.2f))
+			{
+				SlideDoor_SetClosed("slidedoor_airlock_1",false,false);
+			}
+			
+			
+		}
+	
+
+	
+	////////////////////////////
+	// This only used for pure debug purposes when info needs to printed.
+	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
+	{
+		//afY = cLux_DrawDebugText("My Debug value:"+..., afY);
+		return afY;
+	}
+	
+	///watch out bois V terminal stuff down below !
+		 
+		 bool os1 = false;
+		 bool os2 = false;
+		 bool os3 = false;
+		 bool os4 = false;
+	
+	void compterminal_airlockStatus_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		//ImGui_SetTransCategory("Terminal_Airlock");
+		StationGuiBG_Scanlines();
+		StationGuiBG_Backdrop();
+		
+		cImGuiLabelData Title;
+		cImGuiLabelData Title2;
+		cImGuiLabelData Content;
+
+		Title.mFont.mvSize = cVector2f(125, 110);
+		Title2.mFont.mvSize = cVector2f(95, 80);
+		Content.mFont.mvSize = cVector2f(40, 40);
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_intermed_idleOff);
+		bool bBackButton = false;
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+		
+		cImGuiWindowData window = StationGui_CreateDefaultWindowData();
+		ImGui_DoWindowStart("Status", window, ImGui_NrmPosGroup(cVector3f(0.025, 0.025, 3)), ImGui_NrmSizeGroup(cVector2f(0.95, 0.95)));
+						
+		switch(lActiveApp)
+            {
+			case eComputerTerminalApp_intermed_idleOff:
+			//StationGui_MainMenu();
+				ImGui_DoLabelExt("UNAUTHORISED", Title, cVector3f(100, 100, 0));
+
+				bBackButton = false;		
+			break;
+			
+			case eComputerTerminalApp_intermed_idle:
+				ImGui_DoLabelExt("Airlock Ready", Title, cVector3f(100, 00, 0));
+				bBackButton = false;		
+			break;
+			
+			case eComputerTerminalApp_intermed_noSuit:
+			ImGui_DoLabelExt("Error: Dive Suit Required", Title2, cVector3f(80, 80, 0));
+			if(os1 == false){os1 = true; Sound_CreateAtEntity("terminal_beep2", "Entities_Station/tech/terminal_beeps/terminal_computer_denied", "compterminal_airlockStatus", 0.0f, false, 5.5f);}
+				bBackButton = false;
+			break;
+			
+			case eComputerTerminalApp_intermed_suitLoad:
+				if(StationGui_LoadingWindow("loadingwindow2", "Airlock", "Cycling Airlock", 11.0f, false))
+				{
+					if(os2 == false){os2 = true; Sound_CreateAtEntity("terminal_beep2", "Entities_Station/tech/terminal_beeps/terminal_computer_granted", "compterminal_airlockStatus", 0.0f, false, 5.5f);}
+					StationGui_SetActiveApp(eComputerTerminalApp_intermed_suitOK);
+				}
+				bBackButton = false;		
+			break;
+				
+			case eComputerTerminalApp_intermed_suitOK:
+			ImGui_DoLabelExt("Cycle Complete", Title, cVector3f(100, 100, 0));
+			if(os3 == false){os3 = true; Sound_CreateAtEntity("terminal_beep2", "Entities_Station/tech/terminal_beeps/terminal_computer_granted", "compterminal_airlockStatus", 0.0f, false, 5.5f);}
+				bBackButton = false;		
+			break;
+			
+			case eComputerTerminalApp_intermed_doorError:
+				ImGui_DoLabelExt("Error: Door Malfunction", Title2, cVector3f(80, 80, 0));
+				if(os4 == false){os4 = true; Sound_CreateAtEntity("terminal_beep2", "Entities_Station/tech/terminal_beeps/omicron_battery_recharge_beep", "compterminal_airlockStatus", 0.0f, false, 5.5f);}
+				bBackButton = false;		
+			break;
+            }
+	}
+ 
+	bool airlockButtonPressable = true;
+	void diveroom_terminal_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		//ImGui_SetTransCategory("Terminal_Airlock");
+		
+		StationGuiBG_Scanlines();
+		cImGuiLabelData Title;
+		cImGuiLabelData Content;
+		
+		Title.mFont.mvSize = cVector2f(65, 65);
+		Content.mFont.mvSize = cVector2f(40, 40);
+		
+		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_BOIS);
+		bool bBackButton = true;
+		
+		if (StationGui_DrawAndCheckErrors()) return;
+		cImGuiWindowData window = StationGui_CreateDefaultWindowData();
+		
+		switch(lActiveApp)
+            {
+			case eComputerTerminalApp_MainMenu:
+				StationGuiBG_Backdrop();
+				
+				StationGui_AddApp("Activate Airlock",airlockButtonPressable,eComputerTerminalApp_ActivateAirlock);
+				StationGui_AddApp("Check Airlock Status",false,eComputerTerminalApp_MainMenu);
+				StationGui_AddApp("Lock Workbench",false,eComputerTerminalApp_MainMenu);
+				StationGui_MainMenu();
+				
+				bBackButton = false;		
+			break;
+			
+			case eComputerTerminalApp_BOIS:
+				ImGui_DoLabelExt("SYSTEM BOOT SEQUENCE V1.2", Title, cVector3f(20, 0, 0));
+				ImGui_DoLabelExt("> SYSYEM BOOT START", Content, cVector3f(20, 100, 0));
+				ImGui_DoLabelExt("> RAM O.K.", Content, cVector3f(20, 100+(35*1), 0));
+				ImGui_DoLabelExt("> CPU CLOCK SET", Content, cVector3f(20, 100+(35*2), 0));
+				ImGui_DoLabelExt("> MEMORY INIT", Content, cVector3f(20, 100+(35*3), 0));
+				ImGui_DoLabelExt("> BANK F.1.1 OK", Content, cVector3f(20, 100+(35*4), 0));
+				ImGui_DoLabelExt("> BANK F.2.2 BAD", Content, cVector3f(20, 100+(35*5), 0));
+				ImGui_DoLabelExt("> ERROR MEMORY INIT AT 2", Content, cVector3f(20, 100+(35*6), 0));
+				ImGui_DoLabelExt("> CHIP NOT FOUND", Content, cVector3f(20, 100+(35*7), 0));
+				ImGui_DoLabelExt("> ECX:0023121A", Content, cVector3f(20, 100+(35*18), 0));
+				bBackButton = false;
+			break;
+			
+			//, false, cVector2f(0.75, 0.25), 1.5f "ComputerApp_Airlock_Title",
+			case eComputerTerminalApp_Loading:
+				if(StationGui_LoadingWindow("loadingwindow", "Reboot", "Rebooting...", 5.0f, false))
+				{
+					Sound_CreateAtEntity("terminal_beep", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_omnitool_configured", "diveroom_terminal");
+					StationGui_SetActiveApp(eComputerTerminalApp_MainMenu);
+				}
+				bBackButton = false;		
+			break;
+	
+			case eComputerTerminalApp_ActivateAirlock:
+				airlockButtonPressable=false;
+				Terminal_unlocked = true;
+				Terminal_SetAllowInteraction("diveroom_terminal",false);
+				StationGui_SetActiveApp(eComputerTerminalApp_omni);
+				bBackButton = false;		
+			break;
+			case eComputerTerminalApp_omni:
+				airlockButtonPressable=false;
+				if(Omnitool_placed == true){
+					StationGui_SetActiveApp(eComputerTerminalApp_MainMenu);
+				}
+				Entity_SetActive("omnitoolArea_1", true);
+				ImGui_DoWindowStart("Status", window, ImGui_NrmPosGroup(cVector3f(0.025, 0.025, 3)), ImGui_NrmSizeGroup(cVector2f(0.95, 0.95)));
+				ImGui_DoLabelExt("Please Insert Omnitool (tm)", Content, cVector3f(20, 0, 0));
+				Terminal_SetAllowInteraction("diveroom_terminal",false);
+				bBackButton = false;		//
+			break;
+            }
+		
+	}
+	
+	bool Trigger_flooded_security(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(airlockIsReady == false){
+			StationGui_SetActiveApp("compterminal_airlockStatus", eComputerTerminalApp_intermed_idleOff);
+			return true;
+		}else{
+			if(hasDivingSuit == false){
+				StationGui_SetActiveApp("compterminal_airlockStatus", eComputerTerminalApp_intermed_noSuit);
+				return true;
+			}
+			else{
+				AirlockSequence("");
+				StationGui_SetActiveApp("compterminal_airlockStatus", eComputerTerminalApp_intermed_suitLoad);
+				return false;
+			}
+		}
+		
+		
+		
+	}
+
+	
+	
+	void LiquidArea_OnCameraCollide(int alState)
+	{
+		if(alState == 1)
+		{
+			MAP_SETTINGS_UNDERWATER();
+		}
+		if(alState == -1)
+		{
+			MAP_SETTINGS_ABOVEWATER();
+		}
+	}
+	
+	bool TriggerArea_monsterActive(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("flesher_male_1", true);
+			Pathfinder_Track_Start("flesher_male_1", true, 1.0f, "");
+			Pathfinder_MoveToNode("flesher_male_1","PathNodeArea_599","",0.0f,false,"");
+		}
+		return false;
+	}
+	
+
+	
+	////scares
+	bool scare_undwerater_1(const tString &in asParent, const tString &in asChild, int alState)
+	
+	{
+		Sound_CreateAtEntity("scare1", "level_amb_shared_underwater/amb/spots/metal/medium_dull_metal_spooky", "player");
+		return false;
+	}
+	
+	bool scare_undwerater_2(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Sound_CreateAtEntity("scare2", "level_amb_shared_underwater/amb/spots/metal/medium_dull_metal_groan_spot", "player");
+		return false;
+	}
+	
+	bool scare_undwerater_3(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Sound_CreateAtEntity("scare3", "level_amb_shared_underwater/amb/spots/scary/metal_underwater_singing", "player");
+		return false;
+	}
+
+	bool scare_undwerater_4(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(hasAirlockChip == true)
+		{
+			Sound_CreateAtEntity("scare4", "level_amb_shared_underwater/amb/spots/scary/eerie_tone_01_oneshot", "player");
+			return false;
+		}
+		else{
+			return true;		
+		}
+		
+	}
+	
+	bool scare_undwerater_5(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Sound_CreateAtEntity("scare5", "level_amb_shared_underwater/amb/spots/scary/binaural_heavy_dark_beats", "player");
+		return false;
+	}
+	////scares end
+	
+		cSequenceStatesData mAirlockSequence;
+		void AirlockSequence(const tString &in asTimer)
+		{
+			Sequence_Begin("AirlockSequence", mAirlockSequence);				
+				
+				if (Sequence_DoStepAndWait(7.00))
+				{
+					SlideDoor_SetClosed("slidedoor_flooded_security_1", true, false);
+				}
+				if (Sequence_DoStepAndWait(3.50))
+				{
+					ParticleSystem_SetActive("PS_airvent_*", true);
+				}
+				if (Sequence_DoStepAndWait(1.00))
+				{
+					ParticleSystem_SetActive("PS_airvent_*", false);
+					ParticleSystem_SetVisible("PS_airvent_*",false);
+				}
+				if (Sequence_DoStepAndWait(1.00))
+				{
+					Lamp_SetLit("lamp_green_*",false,true);
+					Lamp_SetLit("lamp_blue_*" ,true ,true);
+				}
+				if (Sequence_DoStepAndWait(5.00))
+				{
+					SlideDoor_SetClosed("slidedoor_flooded_security_2", false, false);
+				}
+				
+				if (Sequence_DoStepAndWait(1.75))
+				{
+					StationGui_SetActiveApp("compterminal_airlockStatus", eComputerTerminalApp_intermed_doorError);
+					SlideDoor_SetClosed("slidedoor_flooded_security_1", false, false);
+				}
+				if (Sequence_DoStepAndWait(0.45))
+				{
+					SlideDoor_SetClosed("slidedoor_flooded_security_1", true, false);
+				}
+				if (Sequence_DoStepAndWait(0.75))
+				{
+					SlideDoor_SetClosed("slidedoor_flooded_security_1", false, false);
+				}
+				if (Sequence_DoStepAndWait(0.45))
+				{
+					SlideDoor_SetClosed("slidedoor_flooded_security_1", true, false);
+				}
+				if (Sequence_DoStepAndWait(0.0))
+				{
+					SlideDoor_SetClosed("slidedoor_flooded_security_1", false, false);
+				}
+
+
+			Sequence_End();
+		}	
+		
+
+		
+		
+		cSequenceStatesData mChangeAreaEffectSequence;
+		void ChangeAreaEffectSequence(const tString &in asTimer)
+		{
+			Sequence_Begin("ChangeAreaEffectSequence", mChangeAreaEffectSequence);				
+				
+				if (Sequence_DoStepAndWait(0.15))
+				{
+					
+				}
+				if (Sequence_DoStepAndWait(1.50))
+				{
+					Effect_Fade_Out(0.75f);
+				}
+				if (Sequence_DoStepAndWait(1.50))
+				{
+					Effect_Fade_In(0.75f);
+				}
+				
+
+
+			Sequence_End();
+		}
+
+		
+		void MAP_SETTINGS_UNDERWATER()
+		{
+			Map_SetSkyBoxTexture("grayscale_gradient.dds");
+			Map_SetSkyBoxActive(true);
+			Map_SetEnvironmentParticlesActive(true);
+			Map_SetEnvironmentParticleVisible("waterdust_tiny_3x3.dds",true);
+			Map_DisableDistanceCulling();
+			Map_Preset_Fade("underwater",0.25f);
+			Player_SetUnderwater(true);
+			cLux_AddDebugMessage("ENVIRON: UNDERWATER");
+		}
+		
+		void MAP_SETTINGS_ABOVEWATER()
+		{
+			Map_SetSkyBoxTexture("");
+			Map_SetSkyBoxActive(true);
+			Map_SetEnvironmentParticlesActive(false);
+			Map_SetEnvironmentParticleVisible("waterdust_tiny_3x3.dds",false);
+			Map_DisableDistanceCulling();
+			Map_Preset_Fade("abovewater",0.25f);
+			Player_SetUnderwater(false);
+			cLux_AddDebugMessage("ENVIRON: ABOVEWATER");
+		}
+	
+}

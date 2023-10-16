@@ -1,0 +1,100 @@
+<LANGUAGE>
+
+    <RESOURCES>
+        <Directory Path="fonts/" />
+        <Directory Path="lang/eng" />
+    </RESOURCES>
+	
+	<CATEGORY Name="Security_Computer">
+		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Title">Remove Lockdown</Entry>
+		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Log_Title">Security Log</Entry>
+		
+		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Text">Date: 0-0-0000[br]    Lockdown lifted successfully.</Entry>
+		
+		
+		<Entry Name="ComputerApp_RedArea_Security_Lockdown_Title">Remove Lockdown</Entry>	
+		<Entry Name="ComputerApp_RedArea_Security_Log_Title">Security Log</Entry>
+
+		<Entry Name="ComputerApp_RedArea_Security_Log_Text">Date: 0-0-0000[br]    Lockdown lifted successfully.</Entry>
+		
+		
+		<Entry Name="ComputerApp_RedArea_Security_Lore_Title">Emergency</Entry>
+		<Entry Name="ComputerApp_RedArea_Security_Lore_Text">Pathos-II - EMERGENCY![br] A biological threat has been received at Theta Laboratories. If you are near facility, prepare immediately for possible evacuation. Listen for instructions from officials or local authorities and follow them quickly and carefully. [br]For additional information and updates go to John Strohmeier.</Entry>
+	</CATEGORY>
+	
+	<CATEGORY Name="Lobby_Computer">
+		<Entry Name="ComputerApp_Lobby_Power_Title">Concerning Recent Power Fluctuations</Entry>	
+		<Entry Name="ComputerApp_Lobby_Power_Text">Many employees have reported unusual power fluctuations across Pathos-II. The cause is currently unknown but we are currently working on a long term solution. Thank you for your understanding.[br][br] -Terry Akers.</Entry>
+		
+		<Entry Name="ComputerApp_Lobby_Confidential_Title">Concerning Confidential Experimentation</Entry>
+		<Entry Name="ComputerApp_Lobby_Confidential_Text">The scientific work we are conduction in these laboratories is highly confidential, We ask all members of staff to not speak about the contents of their work unless to an employee of equal or greater security clearance, and we ask you to not talk about confidential information in public, non-restrictive areas. Thank you for your understanding.[br][br] -John Strohmeier[br] -Terry Akers.</Entry>
+		
+		<Entry Name="ComputerApp_Lobby_Emergency_Title">[File Corrupted]</Entry>
+		<Entry Name="ComputerApp_Lobby_Emergency_Text">ERGENCY! A biological authos-II - EMERGENCY! A biological them quickly formation and updately follow threat has been received at has been received at Theta Laboratorities. If you are near facility, preparefully. For local instruction. Listen received at has been received at Theta Laboratories and care near facility, prepare near facility, prepare immediates go to John Strohmeier. Pathos-II - EMERGENCY! A biological authos-II - EMERGENCY! A biological informational infor instructions from officials o</Entry>
+	</CATEGORY>	
+	
+	<CATEGORY Name="terminal_freezer">
+		<Entry Name="TechTermLocked">MALFUCTION</Entry>
+		<Entry Name="ComputerApp_Freezer_Dialog_Title">REBOOTING...</Entry>
+		<Entry Name="Compressor">COMPRESSOR</Entry>
+		<Entry Name="temperature">TEMPERATURE</Entry>
+		<Entry Name="c">C</Entry>
+		<Entry Name="door">DOOR STATUS</Entry>
+		<Entry Name="closed">Closed</Entry>
+		<Entry Name="opened">Opened</Entry>
+		<Entry Name="coolant">COOLANT PRESSURE</Entry>
+		<Entry Name="system">SYSTEM</Entry>
+		<Entry Name="working">WORKING</Entry>
+	</CATEGORY>	
+	
+	<CATEGORY Name="Terminal_Info">
+		<Entry Name="OUTSIDE">OUTSIDE</Entry>
+		<Entry Name="LOCKED">LOCKED</Entry>	
+		<Entry Name="TRAM_1">Tram 1</Entry>	
+		<Entry Name="TRAM_2">Tram 2</Entry>	
+		<Entry Name="ACTIVE">ACTIVE</Entry>	
+		<Entry Name="ELEVATOR">ELEVATOR</Entry>	
+	</CATEGORY>	
+	
+	<CATEGORY Name="Terminal_PowerBox">
+		<Entry Name="DOOR">DOOR</Entry>	
+		<Entry Name="MALFUCTION">MALFUCTION</Entry>	
+		<Entry Name="STATUS">Missing (1) security chips!</Entry>
+		<Entry Name="DOOR">DOOR</Entry>	
+		<Entry Name="ACTIVE">ACTIVE</Entry>			
+	</CATEGORY>	
+	
+	<CATEGORY Name="Terminal_Airlock">
+		<Entry Name="ComputerApp_Airlock_Title">Cycle Airlock</Entry>	
+		<Entry Name="ComputerApp_Airlock_Dialog_Title">Airlock Progress</Entry>
+		<Entry Name="ComputerApp_Airlock_Dialog_Text_1">Please wait...</Entry>
+		<Entry Name="ComputerApp_Airlock_Dialog_Text_2">Please proceed.</Entry>
+	</CATEGORY>
+
+	
+	<CATEGORY Name="Terminal_Puzzle">
+		<Entry Name="Plug_1_OK">Socket 1: Active</Entry>	
+		<Entry Name="Plug_1_BAD">Socket 1: Disconected</Entry>
+		<Entry Name="Plug_2_OK">Socket 2: Active</Entry>	
+		<Entry Name="Plug_2_BAD">Socket 2: Disconected</Entry>
+		<Entry Name="Knob_1_OK">Power Requlator 1: 100%</Entry>
+		<Entry Name="Knob_1_BAD">Power Requlator 1: 0%</Entry>
+		<Entry Name="Knob_2_OK">Power Requlator 2: 100%</Entry>
+		<Entry Name="Knob_2_BAD">Power Requlator 2: 0%</Entry>
+		<Entry Name="Knob_3_OK">Power Requlator 3: 100%</Entry>
+		<Entry Name="Knob_3_BAD">Power Requlator 3: 0%</Entry>
+		<Entry Name="Status_OK">Power Flow: Active</Entry>
+		<Entry Name="Status_BAD">Power Flow: Not Active</Entry>
+	</CATEGORY>
+
+	<CATEGORY Name="Terminal_underwater_tunnel">
+		<Entry Name="ComputerApp_Redirect_Title">Redirect Utility</Entry>
+		<Entry Name="ComputerApp_Admin_Title">Admin Utility</Entry>
+		<Entry Name="ComputerApp_Other_Title">Status</Entry>
+		<Entry Name="text1">Redirect</Entry>
+		<Entry Name="text2">Switching Power Relays</Entry>
+		<Entry Name="ComputerApp_Redirect_status">Redirect O.K.</Entry>		
+
+	</CATEGORY>		
+		
+</LANGUAGE>
