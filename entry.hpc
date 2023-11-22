@@ -3,9 +3,13 @@
 <Content Version="1.01"
 	Type="StandAlone"
 	Title="Echoes"
-	Author="Alex Koehn"
+	Author="me"
 	Description="test description"
+	UID="koehn.echoes"
+	Dependencies="frictionalgames.atddassets"
+	ResourcesCfg=""
+	LanguageFolder=""
 	LauncherPic="LauncherPic.png"
 	InitCfg="config/main_init.cfg"
-	UID="Koehn.Echoes"
+	
 />

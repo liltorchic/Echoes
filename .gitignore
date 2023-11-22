@@ -63,3 +63,14 @@ static_objects/
 *.hpm_Primitive
 maps/temp/temp.hps
 entry.swd
+*.mat
+*.tga
+*.dae
+*.ent
+*.jpg
+*.msh
+*.ho
+*.anm
+new 1.txt
+*.dae_anim
+*.ps

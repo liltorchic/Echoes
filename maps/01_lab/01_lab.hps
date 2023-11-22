@@ -53,6 +53,8 @@ enum eComputerTerminalApp
 	
 class cScrMap : iScrMap
 {
+	
+	bool DEVELOPERMODE = true;
 	//--------------------------------------------
  
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +120,7 @@ class cScrMap : iScrMap
 		Player_ShowCrossHairIcons(false);
 			
 			//if we are in debug mode
-		if (cLux_ScriptDebugOn())
+		if (cLux_ScriptDebugOn() && DEVELOPERMODE)
 		{
 			cLux_AddDebugMessage("debug on");
 			Sound_SetGlobalVolume(1.0f, eSoundEntryType_WorldAll);
@@ -273,6 +275,10 @@ class cScrMap : iScrMap
 		Billboard_SetVisible("Billboard_102", false);
 		Billboard_SetVisible("Billboard_101", false);
 		
+		//freezer lamps
+		Lamp_SetLit("freezer_lamp_green",false,true);		
+		Lamp_SetLit("freezer_lamp_red",true,true);	
+		
 	//area 2
 	
 		Button_SetLocked("LabDoor_*",true,true);
@@ -399,7 +405,19 @@ class cScrMap : iScrMap
 	{
 		SeqIntro("");
 	}
+	//
 	
+	bool train_exit_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Music_Play("01_01_passage",1.0f,true,eMusicPrio_BgAmb);
+		return false;
+	}
+	
+	bool elevatorroom0_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Music_Stop(1.5f,eMusicPrio_BgAmb);
+		return false;
+	}
 	
 	
 	bool quicksave(const tString &in asParent, const tString &in asChild, int alState)
@@ -884,6 +902,114 @@ class cScrMap : iScrMap
 	{
 		Agent_SetAutoDisableWhenOutOfSightActive("puppet_1_1",true,1.0F);
 	}
+	
+	bool L1R1_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{//NPC_flesher_notice1
+		Music_Play("01_02_catwalk_collapse",0.4f, false, eMusicPrio_MinorEvent);
+		return false;
+	}
+	
+	bool L1R5t_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Music_Play("NPC_flesher_notice1",0.6f, false, eMusicPrio_MinorEvent);
+		return false;
+	}
+	
+	bool L1R5t_1_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("gore_tunnel_1",true);
+			Sound_Play("gore_tunnel_1",0.125f,false);
+		}
+		return true;
+	}
+	
+	bool L1R5t_2_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("gore_tunnel_2",true);
+			Sound_Play("gore_tunnel_2",0.125f,false);
+		}
+		return true;
+	}
+	
+	bool L1R5t_3_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("gore_tunnel_3",true);
+			Sound_Play("gore_tunnel_3",0.125f,false);
+		}
+		return true;
+	}
+	
+	bool L1R5t_4_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("gore_tunnel_4",true);
+			Sound_Play("gore_tunnel_4",0.125f,false);
+		}
+		return true;
+	}
+	
+	bool L1R6_onEnter(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Music_Play("NPC_flesher_notice3",0.6f, false, eMusicPrio_MinorEvent);
+		return false;
+	}
+	
+	bool TriggerArea_valley_flicker(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Lamp_SetFlickerActive("lamp_valley_flicker",true);
+		}
+		else 
+		{
+			Lamp_SetFlickerActive("lamp_valley_flicker",false);
+		}
+		
+		return true;
+	}
+	
+	bool TriggerArea_valley_Active(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		setupValleyEffect(false);
+		return false;
+	}
+
+	void setupValleyEffect(bool i)
+	{
+		int rand = cMath_RandRectl(1, 10);
+		if(i)
+		{
+			rand =+ 10;
+		}
+		Map_AddTimer("timer_valleyLightScan", rand,"timer_valleyLightScan");
+	}
+	
+	void timer_valleyLightScan(const tString &in asTimer)
+	{
+		Light_SetVisible("spot_l1sfx_*",true);
+		Area_MoveLinearTo("area_movelight", "area_movelight_target_end", 1.0f, 3.0f, 0.0f, true, "moveCallback");
+		Map_AddTimer("timer_valleyLightScan_a",3.0f,"timer_valleyLightScan_a");
+	}
+	
+	void timer_valleyLightScan_a(const tString &in asTimer)
+	{
+		Light_SetVisible("spot_l1sfx_*",false);
+		setupValleyEffect(true);//recursive
+	}
+	
+	void moveCallback(const tString &in asCallback)
+	{
+		Area_MoveLinearTo("area_movelight_target_end", "area_movelight",1.0f,3.0f,0.0f,true,"");
+	}
+	
+	 
 
 	bool bFreezerChipInserted = false;
 	bool bFreezerChipInteracted = false;
@@ -917,6 +1043,7 @@ class cScrMap : iScrMap
 		Entity_SetActive("freezer_lamp_red_5",false);
 		Entity_SetActive("freezer_lamp_red_4",true);
 		cLux_AddDebugMessage("Freezer Chip Inserted!");
+		Music_Play("NPC_flesher_notice3",0.6f, false, eMusicPrio_MinorEvent);
 		bFreezerChipInserted = true;
 	}
 	
@@ -931,6 +1058,8 @@ class cScrMap : iScrMap
 			isPlayerInsideFreezerArea = true;
 			sFreezerDoorOpen = true;
 			SlideDoor_SetClosed("glassdoor_freezer_*",false,false);
+			Lamp_SetLit("freezer_lamp_green",true,true);		
+			Lamp_SetLit("freezer_lamp_red",false,true);	
 		}
 		
 		//exit
@@ -945,6 +1074,8 @@ class cScrMap : iScrMap
 	void timer_closeFreezerDoors(const tString &in asTimer)
 	{
 		SlideDoor_SetClosed("glassdoor_freezer_*",true,false);
+		Lamp_SetLit("freezer_lamp_green",false,true);		
+		Lamp_SetLit("freezer_lamp_red",true,true);	
 		sFreezerDoorOpen = false;
 	}
 	
@@ -2604,11 +2735,11 @@ class cScrMap : iScrMap
 		void SeqIntro(const tString &in asTimer)
 		{
 			Sequence_Begin("SeqIntro", seqIntro);
-			
-				if(Sequence_DoStepAndWait(10.0f))
+				if(Sequence_DoStepAndWait(3.0f))
 				{
 					Player_SetLookSpeedMul(0.125f);
 					Player_SetMoveSpeedMul(0);
+					CameraAnimationNode_SetAutoMove("AbyssWakeUpAnim_1", 0.5);
 				}
 				
 				else if(Sequence_DoStepAndWait(8.0f))
@@ -2619,14 +2750,16 @@ class cScrMap : iScrMap
 					Effect_ImageTrail_FadeOut(imagetraideID, 25.0f);
 					Effect_Fade_In(8.0f);
 					Sound_CreateAtEntity("WakeUp","00_05_apartment2/SFX/bed_awaken","Player",0,false);
-					CameraAnimationNode_SetAutoMove("AbyssWakeUpAnim_1", 0.5);
 					CameraAnimation_Begin("AbyssWakeUpAnim", "", true);
+					Music_Play("01_01_afterflashback",1.0f,false,eMusicPrio_BigEvent);
 				}
 				
 				else if(Sequence_DoStepAndWait(4.0f))
 				{
 					Player_SetLookSpeedMul(0.65f);
 					Player_SetMoveSpeedMul(1);
+					Entity_SetActive("tram_hissd",true);
+					Sound_Play("tram_hissd",0.0f,false);
 				}
 				
 				else if(Sequence_DoStepAndWait(2.0f))
@@ -2635,6 +2768,8 @@ class cScrMap : iScrMap
 					Player_ShowCrossHairIcons(true);
 					Player_SetJumpDisabled(false);
 					Player_SetLookSpeedMul(1.0f);
+					Entity_SetActive("tram_dooropen",true);
+					Sound_Play("tram_dooropen",0.0f,false);
 				}
 				
 				else if(Sequence_DoStepAndWait(1.0f))
