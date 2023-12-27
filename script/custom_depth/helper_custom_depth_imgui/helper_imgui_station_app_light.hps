@@ -1,0 +1,250 @@
+#include "helpers/helper_font.hps"
+
+enum eStationGui_LightAppButtonType
+{
+	eStationGui_LightAppButtonType_Button,
+	eStationGui_LightAppButtonType_MovingButton,
+}
+
+//-------------------------------------------------------
+
+class cStationGui_LightAppSettings
+{
+	int mlMinLockedCount = 0;
+	int mlTimerLength = 2;
+	float mfSizeMul = 1;
+	cVector3f mvPosOffset = 0;
+	cImGuiGfx mMapBackground;
+}
+
+//-------------------------------------------------------
+
+class cLightAppButton
+{
+	cLightAppButton(){}
+	
+	cLightAppButton(const tString &in asName)
+	{
+		msName = asName;
+	}
+	
+	tString msName;
+	tString msFocusText;
+	cVector3f mvNrmPos;
+	cVector2f mvNrmSize = cVector2f(0.175, 0.20);
+	eStationGui_LightAppButtonType mButtonType = eStationGui_LightAppButtonType_Button;
+	tString msCustomClickCallback = "";
+	
+	cVector2f mvUIPosExpandNeg = cVector2f_Zero;
+	cVector2f mvUIPosExpandPos = cVector2f_Zero;
+	
+	cImGuiGfx mGfx;
+	
+	array<tString> mvButtons;
+	
+	tString msSlideDoor="";
+}
+
+array<cLightAppButton> gvDoorControlButtons;
+
+//-------------------------------------------------------
+	
+void StationGui_LightApp(const cStationGui_LightAppSettings &in aSettings = cStationGui_LightAppSettings())
+{	
+	///////////
+	// Data
+	cImGuiLabelData label = ImGui_GetDefaultLabel();
+	label.mFontAlign = eFontAlign_Left;
+	label.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+	label.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.04);
+	
+	cImGuiButtonData button = StationGui_CreateToggleButtonData();
+	button.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.0375);
+	button.mColorBase = gStationGuiColor_Warning;
+	button.mColorTriggered = gStationGuiColor_Normal; 
+	ImGui_SetDefaultButton(button);
+	
+	cImGuiTextFrameData text = StationGui_CreateDefaultTextFrameData();
+	text.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.04);
+	
+	////////////////
+	// Setup
+	tString sPrevLang = ImGui_GetTransCategory();
+	ImGui_SetTransCategory("StationGUI");
+	
+	ImGui_SetStateInt("LightApp_FocusIndex", -1);
+	
+	if (ImGui_GetStateBool("LimitAlertActive", false) && ImGui_TimerExists("StopLimitAlert")==false)
+	{
+		ImGui_SetStateBool("LimitAlertActive", false);
+	}
+	
+	////////////////
+	// Map window
+	ImGui_DoWindowStart("DoorControlApp_Label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.95, 0.65)));
+	ImGui_SetTransCategory(sPrevLang);
+	
+	ImGui_SetAlignment(eImGuiAlign_CenterCenter);
+	
+	cVector2f vMapSize = ImGui_GetRatioCorrectSizeByRect(aSettings.mMapBackground, ImGui_NrmSizeGroup(1, 1));
+	ImGui_GroupBegin(ImGui_NrmPosGroup(cVector3f(0, 0, 1)+aSettings.mvPosOffset), vMapSize*aSettings.mfSizeMul);
+	
+	ImGui_DoImage(aSettings.mMapBackground, ImGui_NrmPosGroup(0.5, 0.5, 0.25), ImGui_NrmSizeGroup(1));
+	//ImGui_DoTextFrameExt("use arrow keys to navigate", ImGui_NrmSizeGroup(0.125, 0.12), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
+	ImGui_DoLabelExt("use arrow keys to navigate", label, ImGui_NrmPosGroup(0.5, 0.5, 3), ImGui_NrmSizeGroup(1, 1), 1.5);
+	
+	////////////////////////
+	// Iterate buttons
+	int lLockedRoomCount = 0;
+	bool bFocusLocked = false;
+	for (uint i = 0; i < gvDoorControlButtons.length(); i++)
+	{
+		bool bLocked = StationGui_LightApp_Button(gvDoorControlButtons[i], i, aSettings);
+		if (bLocked)
+		{
+			if (ImGui_GetStateInt("LightApp_FocusIndex", -1)==i)
+				bFocusLocked = true;
+			lLockedRoomCount++;
+		}
+	}
+	ImGui_SetStateInt("LockedRoomCount", lLockedRoomCount);
+	ImGui_SetAlignment(eImGuiAlign_TopLeft);
+	
+	ImGui_GroupEnd();
+	ImGui_DoWindowEnd();
+	
+	/////////////////////////////////////
+	// Room info text
+	ImGui_SetTransCategory("StationGUI");
+	ImGui_DoWindowStart("DoorControlApp_RoomInfoHeader", StationGui_CreateDefaultWindowData(), 
+						ImGui_NrmPos(cVector3f(0.02, 0.7, 2)), ImGui_NrmSize(cVector2f(0.95, 0.28)));
+		int lFousIndex = ImGui_GetStateInt("LightApp_FocusIndex", -1);
+		if (lFousIndex != -1)
+		{
+			ImGui_SetTransCategory(sPrevLang);
+			ImGui_DoTextFrameExt(gvDoorControlButtons[lFousIndex].msFocusText, ImGui_NrmSizeGroup(0.125, 0.12), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
+			ImGui_SetTransCategory("StationGUI");
+			
+			label.mFontAlign = eFontAlign_Center;
+			tString sEntry = bFocusLocked ? "DoorControlApp_Locked" : "DoorControlApp_Unlocked";
+			cVector2f vFontSize = label.mFont.mvSize;
+			ImGui_ResizeFontToFit(sEntry, label.mFont, ImGui_GetCurrentGroupSize().x*0.9, 1.5);
+			
+			ImGui_SetModColorMul(bFocusLocked ? gStationGuiColor_Warning : gStationGuiColor_Highlight2);
+			ImGui_DoLabelExt(sEntry, label, ImGui_NrmPosGroup(0.15, 0.4, 1), ImGui_NrmSizeGroup(1, -1), 1.5);
+			ImGui_SetModColorMul(cColor_White);
+			label.mFontAlign = eFontAlign_Left;
+			
+			label.mFont.mvSize = vFontSize;
+		}
+		else
+		{
+			ImGui_DoTextFrameExt("test", ImGui_NrmSizeGroup(0.125, 0.12), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
+		}
+		
+	ImGui_DoWindowEnd();
+	
+	
+	gvDoorControlButtons.resize(0);
+}
+		
+//-------------------------------------------------------
+
+bool StationGui_LightApp_Button(const cLightAppButton &in aButton, int aIndex, const cStationGui_LightAppSettings &in aSettings)
+{		
+	bool bLocked = true;
+	bool bDisabled;
+	bool bUnlockAllowed = true;
+	
+	if(aButton.mButtonType == eStationGui_LightAppButtonType_Button)
+	{
+		bLocked = ImGui_GetStateBool(aButton.msName+"a", false);
+		bDisabled = ImGui_GetStateBool("d", false);
+	}
+	
+	if (bDisabled)
+	{
+		ImGui_SetModUseInput(false);
+	}
+
+	///////////////////////////
+	// Draw invisible button
+	ImGui_SetModUISizeHoriExpansion(aButton.mvUIPosExpandNeg.x, aButton.mvUIPosExpandPos.x);
+	ImGui_SetModUISizeVertExpansion(aButton.mvUIPosExpandNeg.y, aButton.mvUIPosExpandPos.y);
+	cImGuiButtonData button = ImGui_GetDefaultButton();
+	button.mbUseFrame = false;
+	bool bButtonPressed = ImGui_DoButtonExt(aButton.msName+"_LightButton", "", button, 
+											ImGui_NrmPosGroup(aButton.mvNrmPos), ImGui_NrmSizeGroup(aButton.mvNrmSize));
+	ImGui_SetModUISizeHoriExpansion(0, 0);
+	ImGui_SetModUISizeVertExpansion(0, 0);
+											
+	///////////////////////////
+	// Draw map room image
+	if (ImGui_PrevInFocus())
+	{
+		cColor col = button.mColorInFocus;
+		if(bLocked) col = col * cColor(1.5,0.6f,0.6f, 1.0f);
+		ImGui_SetModColorMul(col);
+		ImGui_SetStateInt("LightApp_FocusIndex", aIndex);
+	}
+	else
+	{
+		cColor col = button.mColorBase;
+		if(bLocked==false) col = button.mColorTriggered;
+		ImGui_SetModColorMul(col);
+	}
+	
+	ImGui_DoImage(aButton.mGfx, ImGui_NrmPosGroup(0.5, 0.5, 2), ImGui_GetRatioCorrectSizeByRect(aButton.mGfx, ImGui_NrmSizeGroup(1, 1)));
+	ImGui_SetModColorMul(cColor_White);
+	
+	if(ImGui_TimerOver("resetTimer") == true)
+	{
+		for (uint i = 0; i < aButton.mvButtons.length(); i++)//iterate through each button
+		{
+			if (aButton.mButtonType == eStationGui_LightAppButtonType_Button)// if exists as imgui buttons
+			{
+				ImGui_SetStateBool(aButton.msName+"a", false); // resets button
+				ImGui_SetStateBool("d", false);
+				Depth_Audio_Terminal_Error(ImGui_GetName());
+			}
+		}
+	}
+	
+	if (bButtonPressed)
+	{
+		bool bLockDoor = bLocked;
+		
+		//excecutes described callback in map script file
+		if (aButton.msCustomClickCallback != "")
+		{
+			bLockDoor = bLocked;
+			if (cLux_GetCurrentMap().ScriptPrepare("bool " + aButton.msCustomClickCallback + "()") )
+			{				
+				cLux_GetCurrentMap().ScriptExecute();
+				bLockDoor = cLux_GetCurrentMap().GetReturnBool();
+				Depth_Audio_Terminal_Confirm(ImGui_GetName());
+			}
+		}
+		
+		for (uint i = 0; i < aButton.mvButtons.length(); i++)//iterate through each button
+		{
+			if (aButton.mButtonType == eStationGui_LightAppButtonType_Button && bLocked == false) // if it isnt locked and exists as imgui buttons
+			{
+				ImGui_SetStateBool(aButton.msName+"a", true);
+				ImGui_SetStateBool("d", true);
+							
+				if(ImGui_TimerExists("resetTimer")==false)
+				{
+					ImGui_AddTimer("resetTimer", aSettings.mlTimerLength);
+				}
+			}
+		}
+			
+	}
+	return bLocked;
+}
+
+void StationGui_LightApp_AddLock(const cLightAppButton &in aButton)
+{
+	gvDoorControlButtons.push_back(aButton);
+}

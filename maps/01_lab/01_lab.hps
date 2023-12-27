@@ -23,14 +23,21 @@
 #include "helper_imgui_station_app_error.hps"
 #include "helper_imgui_station_app_mail.hps"
 #include "helper_imgui_station_app_audioplayback.hps"
-#include "helper_imgui_station_app_doorlocks.hps"
 #include "helper_imgui_station_app_numpad.hps"
+
+//my stuff
+#include "helper_imgui_station_app_light.hps"
 
 //--------------------------------------------------
  
 /*Place any global values here. These must be const variables as they will not be saved*/
 /*This is also the place for enums and classes, but these should be avoided whenever possible*/
- 
+bool bPressedFlashlight = false;
+bool bPickedUpIPAD = false;
+bool bInIPAD = false;
+bool mbUsingIpad = false;
+bool clicked = false;
+int LightPeekLength = 4.0f;
 //--------------------------------------------------
  
 enum eComputerTerminalApp
@@ -53,7 +60,6 @@ enum eComputerTerminalApp
 	
 class cScrMap : iScrMap
 {
-	
 	bool DEVELOPERMODE = true;
 	//--------------------------------------------
  
@@ -76,7 +82,22 @@ class cScrMap : iScrMap
 		{
 			PreloadMap();
 		}
-		if(abPressed==false) return;
+		
+		if(alAction == eAction_Flashlight && bPickedUpIPAD)
+		{
+			bPressedFlashlight = true;
+			
+			if(!bInIPAD)
+			{
+				Entity_CallEntityInteract("ipad","",cVector3f_Zero,"");//brings up ipad if we have it
+			}
+		}
+		
+		if(abPressed==false)
+		{
+			bPressedFlashlight = false;
+			return;
+		}
 	}
 	
 	bool testtriggger = false;
@@ -86,8 +107,11 @@ class cScrMap : iScrMap
 	// This only used for pure debug purposes when info needs to printed.
 	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
 	{
-		afY = cLux_DrawDebugText("DEBUG: is player in area 2: "+ isPlayerinArea2, afY);
-		afY = cLux_DrawDebugText("DEBUG: is player in cave: "+ bIsPlayerInCave, afY);
+		afY = cLux_DrawDebugText("is player in area 2: "+ isPlayerinArea2, afY);
+		afY = cLux_DrawDebugText("is player in cave: "+ bIsPlayerInCave, afY);
+		afY = cLux_DrawDebugText("has ipad: "+ bPickedUpIPAD, afY);
+		afY = cLux_DrawDebugText("pressed f: "+ bPressedFlashlight, afY);
+		afY = cLux_DrawDebugText("in ipad gui: "+ bInIPAD, afY);
 		return afY;
 	}
 	
@@ -107,8 +131,9 @@ class cScrMap : iScrMap
 	
 	void OnStart()
 	{
+		cLux_AddDebugMessage("OnStart()");
 		Effect_Fade_Out(0);			
-		cLux_AddDebugMessage("Begin in darkness..");
+		//cLux_AddDebugMessage("Begin in darkness..");
 		Player_SetJumpDisabled(true);
 		Player_SetMoveSpeedMul(1.0);
 		Player_SetLookSpeedMul(1.0);
@@ -118,6 +143,8 @@ class cScrMap : iScrMap
 		imagetraideID = Effect_ImageTrail_Start(2.0f,0.0f, -1.0f, 0.0f);
 		PauseMenu_Enabled(false);
 		Player_ShowCrossHairIcons(false);
+		
+		Entity_AttachToEntity("spot_l1sfx_*","area_movelight","",true,false,false); // attach lights to move area in lab 1
 			
 			//if we are in debug mode
 		if (cLux_ScriptDebugOn() && DEVELOPERMODE)
@@ -138,7 +165,7 @@ class cScrMap : iScrMap
 		}
 		else
 		{
-			cLux_AddDebugMessage("TramIntroSeq");
+			cLux_AddDebugMessage("TramIntroSeq()");
 			TramIntroSeq();
 		}
 
@@ -146,10 +173,12 @@ class cScrMap : iScrMap
 	
 	void OnEnter()
 	{
+		cLux_AddDebugMessage("OnEnter()");
 	}
 	
 	void OnLeave()
 	{
+		cLux_AddDebugMessage("OnLeave()");
 		Player_SetActive(true);
 		Player_ShowCrossHairIcons(true);
 		
@@ -162,6 +191,7 @@ class cScrMap : iScrMap
 	
  	void PreloadMap()
 	{
+		cLux_AddDebugMessage("PreloadMap()");
 		Map_SetPreloadPriority(eWorldStreamPriority_Low);//
 		Map_Preload("02_under.hpm");
 	}
@@ -394,7 +424,8 @@ class cScrMap : iScrMap
 	
 	void UpdateMonsterPathNode(){
 		
-		if(hasChipBeenAquired == true){
+		if(hasChipBeenAquired == true)
+		{
 			Entity_SetActive("puppet_2_1", true);
 		}
 	}
@@ -405,7 +436,6 @@ class cScrMap : iScrMap
 	{
 		SeqIntro("");
 	}
-	//
 	
 	bool train_exit_onEnter(const tString &in asParent, const tString &in asChild, int alState)
 	{
@@ -422,8 +452,8 @@ class cScrMap : iScrMap
 	
 	bool quicksave(const tString &in asParent, const tString &in asChild, int alState)
 	{
+		cLux_AddDebugMessage("quicksaving...");
 		Game_AutoSave();
-		cLux_AddDebugMessage("quicksaving");
 		return false;
 	}
 
@@ -989,6 +1019,7 @@ class cScrMap : iScrMap
 			rand =+ 10;
 		}
 		Map_AddTimer("timer_valleyLightScan", rand,"timer_valleyLightScan");
+		
 	}
 	
 	void timer_valleyLightScan(const tString &in asTimer)
@@ -2174,7 +2205,203 @@ class cScrMap : iScrMap
 		 /*Put any functions that are only used Terminal here.*/
 		 
  //-------------------------------------------------------	 
+	void terminal_map_1_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_DoImage(cImGuiGfx("zeppelin_player", eImGuiGfx_Texture), ImGui_NrmPosGroup(.24, .31, 1), ImGui_NrmSizeGroup(.2));
+			
+		ImGui_DoImage(cImGuiGfx("01_lab_map", eImGuiGfx_Texture), ImGui_NrmPosGroup(0, 0, 0.25), ImGui_NrmSizeGroup(1));
+	}
+	
+	void terminal_map_2_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_DoImage(cImGuiGfx("zeppelin_player", eImGuiGfx_Texture), ImGui_NrmPosGroup(.485, 0.7, 1), ImGui_NrmSizeGroup(.2));
+			
+		ImGui_DoImage(cImGuiGfx("01_lab_map", eImGuiGfx_Texture), ImGui_NrmPosGroup(0, 0, 0.25), ImGui_NrmSizeGroup(1));
+	}
+	
+	void terminal_map_3_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_DoImage(cImGuiGfx("zeppelin_player", eImGuiGfx_Texture), ImGui_NrmPosGroup(.605, -.02, 1), ImGui_NrmSizeGroup(.2));
+			
+		ImGui_DoImage(cImGuiGfx("01_lab_map", eImGuiGfx_Texture), ImGui_NrmPosGroup(0, 0, 0.25), ImGui_NrmSizeGroup(1));
+	}
  
+	void ipad_OnPlayerInteract(const tString &in asEntity)
+	{
+	}
+	
+	void ipad_OnGui(const tString&in asEntityName, float afTimeStep) /////////////////////////////////////////////////////////////////////// IPAD                        IPAD
+	{
+		if(!bPickedUpIPAD)
+		{
+			bPickedUpIPAD = true;
+		}
+		bInIPAD = true;
+		
+			//ImGui_SetTransCategory("02_06_theta_tunnels");
+			
+			
+			cStationGui_LightAppSettings settings;
+			settings.mMapBackground = cImGuiGfx("datapad_map_full", eImGuiGfx_Texture);
+			settings.mfSizeMul = 1.0;
+			settings.mlTimerLength = LightPeekLength;
+			settings.mvPosOffset = cVector3f(0, 0.1, 0);
+			
+			{			
+				cLightAppButton lock = CreateLightButton("map_element_1", "map_element_1");
+				lock.msFocusText = "DoorPanel_MedLab";
+				lock.mvNrmPos = cVector3f(0.1, 0.1, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_2", "map_element_2");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.2, 0.2, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_3", "map_element_3");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.3, 0.3, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_4", "map_element_4");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.4, 0.4, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_5", "map_element_5");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.5, 0.5, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_6", "map_element_6");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.6, 0.6, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_7", "map_element_7");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.7, 0.7, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_8", "map_element_8");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.8, 0.8, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_9", "map_element_9");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.9, 0.9, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_10", "map_element_10");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.91, 0.91, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_11", "map_element_11");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.92, 0.92, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_12", "map_element_12");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.93, 0.93, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_13", "map_element_13");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.94, 0.94, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_14", "map_element_14");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.95, 0.95, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_15", "map_element_15");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.96, 0.96, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_16", "map_element_16");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.97, 0.97, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_17", "map_element_17");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.98, 0.98, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_18", "map_element_18");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.99, 0.99, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+			
+			{
+				cLightAppButton lock = CreateLightButton("map_element_19", "map_element_19");
+				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.mvNrmPos = cVector3f(0.995, 0.995, 6);
+				StationGui_LightApp_AddLock(lock);
+			}
+		
+			
+			
+			int lDoorCount = gvDoorControlButtons.length();
+			
+			StationGui_LightApp(settings);
+		}
+		
+		cLightAppButton CreateLightButton(const tString &in asName, const tString &in asGfx)
+		{
+			cLightAppButton lock(asName);
+			lock.mGfx = cImGuiGfx(asGfx, eImGuiGfx_Texture);
+			lock.mvButtons.push_back(asName);
+			lock.msCustomClickCallback = asName;
+			lock.mvNrmSize = cVector2f(1, 1);
+			//lock.mvNrmPos = cVector3f(1, 1, 1);
+			return lock;
+		}
+		
+	void ipad_GuiLeave(const tString&in asEntityName)
+	{
+		bInIPAD = false;
+	}
 	
  //-------------------------------------------------------
 	void panel_infoTrain1(const tString&in asEntityName, float afTimeStep)

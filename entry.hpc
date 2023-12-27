@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<Content Version="1.01"
+<Content 
+	Dependencies=""
+	Version="1.01"
 	Type="StandAlone"
 	Title="Echoes"
 	Author="me"
 	Description="test description"
 	UID="koehn.echoes"
-	Dependencies="frictionalgames.atddassets"
 	ResourcesCfg=""
 	LanguageFolder=""
 	LauncherPic="LauncherPic.png"
 	InitCfg="config/main_init.cfg"
-	
 />
