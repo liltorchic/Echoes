@@ -11,26 +11,74 @@
 		
 		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Text">Date: 0-0-0000[br]    Lockdown lifted successfully.</Entry>
 		
-		
-		<Entry Name="ComputerApp_RedArea_Security_Lockdown_Title">Remove Lockdown</Entry>	
-		<Entry Name="ComputerApp_RedArea_Security_Log_Title">Security Log</Entry>
-
-		<Entry Name="ComputerApp_RedArea_Security_Log_Text">Date: 0-0-0000[br]    Lockdown lifted successfully.</Entry>
-		
-		
 		<Entry Name="ComputerApp_RedArea_Security_Lore_Title">Emergency</Entry>
 		<Entry Name="ComputerApp_RedArea_Security_Lore_Text">Pathos-II - EMERGENCY![br] A biological threat has been received at Theta Laboratories. If you are near facility, prepare immediately for possible evacuation. Listen for instructions from officials or local authorities and follow them quickly and carefully. [br]For additional information and updates go to John Strohmeier.</Entry>
+		
+	
+		<Entry Name="ComputerApp_Door_Control_Title">Door Control</Entry>
+		<Entry Name="ComputerApp_Door_Control_ADMIN">ADMIN</Entry>
+		<Entry Name="ComputerApp_Door_Control_COMS">COMS</Entry>
+		<Entry Name="ComputerApp_Door_Loading_Caption">Accessing...</Entry>
+		<Entry Name="TechTermLocked">TERMINAL LOCKED</Entry>
+		<Entry Name="ComputerApp_Door_Reading_Caption">Reading...</Entry>
+		
+		<Entry Name="DoorControlApp_Label">DOOR CONTROL</Entry>
+		<Entry Name="DoorControlApp_Label2">STATUS</Entry>
+		
+		<Entry Name="DC_button_1">MAIN.0</Entry>
+		<Entry Name="DC_button_2">LIVE.1</Entry>
+		<Entry Name="DC_button_3">NORTH.9</Entry>
+		<Entry Name="DC_button_4">SOUL.7</Entry>
+		<Entry Name="DC_button_5">FLEX.A</Entry>
+		<Entry Name="DC_button_6">FLEX.B</Entry>
+		
+		<Entry Name="DC_power">POWER:</Entry>
+		<Entry Name="DC_crit">CRITICAL</Entry>
+		<Entry Name="DC_text">INSUFFICENT POWER TO OPERATE MULTIPLE DOORS. ONLY ONE SECURITY DOOR CAN BE OPENED AT A TIME</Entry>
+		<Entry Name="DC_rerout">REROUTE</Entry>
+		
+		<Entry Name="LightControlApp_Label">LIGHT REROUTE</Entry>
+		<Entry Name="LightControlApp_InfoHeader">DATA</Entry>
+		<Entry Name="LightControlApp_wasd">>Use arrow keys to navigate</Entry>
+		<Entry Name="LightControlApp_enter">>Press enter to select</Entry>
+		<Entry Name="LightControlApp_Locked">POWERED</Entry>
+		<Entry Name="LightControlApp_Unlocked">UNPOWERED</Entry>
+		<Entry Name="LightControlApp_node">SELECT NODE</Entry>
+		
+		<Entry Name="LCA_1">North-West Hallway</Entry>
+		<Entry Name="LCA_2">r1</Entry>
+		<Entry Name="LCA_3">Office 1</Entry>
+		<Entry Name="LCA_4">Staff Room</Entry>
+		<Entry Name="LCA_5">Small Room</Entry>
+		<Entry Name="LCA_6">Storage Room</Entry>
+		<Entry Name="LCA_7">Atrium</Entry>
+		<Entry Name="LCA_8">South-East Hallway</Entry>
+		<Entry Name="LCA_9">s1</Entry>
+		<Entry Name="LCA_10">Office 2</Entry>
+		<Entry Name="LCA_11">Service Room</Entry>
+		<Entry Name="LCA_12">East Hallway</Entry>
+		<Entry Name="LCA_13">Labratory</Entry>
+		<Entry Name="LCA_14">Restroom</Entry>
+		<Entry Name="LCA_15">South Hallway</Entry>
+		<Entry Name="LCA_16">North-East Hallway</Entry>
+		<Entry Name="LCA_17">Security Checkpoint</Entry>
+		<Entry Name="LCA_18">Entrance</Entry>
+		<Entry Name="LCA_19">Internal Hallway</Entry>
+		
+	
+	
+	
 	</CATEGORY>
 	
 	<CATEGORY Name="Lobby_Computer">
 		<Entry Name="ComputerApp_Lobby_Power_Title">Concerning Recent Power Fluctuations</Entry>	
-		<Entry Name="ComputerApp_Lobby_Power_Text">Many employees have reported unusual power fluctuations across Pathos-II. The cause is currently unknown but we are currently working on a long term solution. Thank you for your understanding.[br][br] -Terry Akers.</Entry>
+		<Entry Name="ComputerApp_Lobby_Power_Text">Many employees have reported unusual power fluctuations across Pathos-II. The cause is currently unknown and we are currently working on a long term solution. Thank you for your understanding.[br][br] -Terry Akers.</Entry>
 		
 		<Entry Name="ComputerApp_Lobby_Confidential_Title">Concerning Confidential Experimentation</Entry>
-		<Entry Name="ComputerApp_Lobby_Confidential_Text">The scientific work we are conduction in these laboratories is highly confidential, We ask all members of staff to not speak about the contents of their work unless to an employee of equal or greater security clearance, and we ask you to not talk about confidential information in public, non-restrictive areas. Thank you for your understanding.[br][br] -John Strohmeier[br] -Terry Akers.</Entry>
+		<Entry Name="ComputerApp_Lobby_Confidential_Text">The scientific work we are conduction in these laboratories is highly confidential, We ask all members of staff to not speak about the contents of their work unless to an employee of equal or greater security clearance, and we ask you to not talk about confidential information in public or non-restricted areas. Thank you for your understanding.[br][br] -John Strohmeier[br] -Terry Akers.</Entry>
 		
-		<Entry Name="ComputerApp_Lobby_Emergency_Title">[File Corrupted]</Entry>
-		<Entry Name="ComputerApp_Lobby_Emergency_Text">ERGENCY! A biological authos-II - EMERGENCY! A biological them quickly formation and updately follow threat has been received at has been received at Theta Laboratorities. If you are near facility, preparefully. For local instruction. Listen received at has been received at Theta Laboratories and care near facility, prepare near facility, prepare immediates go to John Strohmeier. Pathos-II - EMERGENCY! A biological authos-II - EMERGENCY! A biological informational infor instructions from officials o</Entry>
+		<Entry Name="ComputerApp_Lobby_Emergency_Title">auto lockdown</Entry>
+		<Entry Name="ComputerApp_Lobby_Emergency_Text"> something cool</Entry>
 	</CATEGORY>	
 	
 	<CATEGORY Name="terminal_freezer">

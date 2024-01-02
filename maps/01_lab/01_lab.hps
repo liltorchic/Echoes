@@ -43,10 +43,8 @@ int LightPeekLength = 4.0f;
 enum eComputerTerminalApp
 {
 	eComputerTerminalApp_MainMenu = -1,
-	eComputerTerminalApp_MainMenu_RedArea = -1,
 	eComputerTerminalApp_MainMenu_LobbyComputer = -1,
 	eComputerTerminalApp_LiftLockdown,
-	eComputerTerminalApp_LiftLockdown_RedArea,
 	eComputerTerminalApp_SecurityLog,
 	
 	eComputerTerminalApp_Lobby_Power,
@@ -54,6 +52,11 @@ enum eComputerTerminalApp
 	eComputerTerminalApp_Lobby_Emergency,
 	
 	eComputerTerminalApp_FreezerLoading,
+	
+	eCTA_MainMenu = -1,
+	eCTA_Loading,
+	eCTA_Control,
+	eCTA_Splash,
 }
 
 
@@ -61,6 +64,8 @@ enum eComputerTerminalApp
 class cScrMap : iScrMap
 {
 	bool DEVELOPERMODE = true;
+	
+	int dev_random = cMath_RandRectl(1, 1000);
 	//--------------------------------------------
  
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -107,11 +112,14 @@ class cScrMap : iScrMap
 	// This only used for pure debug purposes when info needs to printed.
 	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
 	{
+		afY = cLux_DrawDebugText("" + dev_random, afY);
 		afY = cLux_DrawDebugText("is player in area 2: "+ isPlayerinArea2, afY);
 		afY = cLux_DrawDebugText("is player in cave: "+ bIsPlayerInCave, afY);
 		afY = cLux_DrawDebugText("has ipad: "+ bPickedUpIPAD, afY);
 		afY = cLux_DrawDebugText("pressed f: "+ bPressedFlashlight, afY);
 		afY = cLux_DrawDebugText("in ipad gui: "+ bInIPAD, afY);
+		afY = cLux_DrawDebugText("in-tunnel-climb: "+ mbInTunnel_climb, afY);
+		afY = cLux_DrawDebugText("in-tunnel-shortcut: "+ mbInTunnel_shortcut, afY);
 		return afY;
 	}
 	
@@ -214,8 +222,6 @@ class cScrMap : iScrMap
 		Map_AddTimer("timer_LobbyAlarmSetup",0.6f,"timer_LobbyAlarmSetup");
 		Map_AddTimer("timer_LobbyAlarmSetup_2",0.55f,"timer_LobbyAlarmSetup_2");
 		Map_AddTimer("timer_LobbyAlarmReset",10.0f,"timer_LobbyAlarmReset");
-		
-		
 	}
 	
 	void timer_LobbyAlarmSetup(const tString &in asTimer)
@@ -311,13 +317,6 @@ class cScrMap : iScrMap
 		
 	//area 2
 	
-		Button_SetLocked("LabDoor_*",true,true);
-		Entity_SetActive("window_shatter_state1",true);
-		
-		Light_SetBrightness("SpotLight_computer_redarea_1",0.0f);
-		
-		Billboard_SetVisible("Billboard_454", false);
-		Billboard_SetVisible("Billboard_455", false);
 		
 	//elevator room
 		StickyArea_AttachBody("StickyArea_ElevatorChip","elevatorchip_broken_Body_chip");
@@ -386,35 +385,25 @@ class cScrMap : iScrMap
 		{
 			Pathfinder_Track_Add("puppet_1_1", "PathNodeArea_" + a, 0.0f, 0.5f, "", false);
 		}
-		
+		/*
 		for(int b = 1; b <= 460; b++)
 		{
 			Pathfinder_Track_Add("puppet_2_1", "PathNodeArea_Red_" + b, 0.0f, 0.5f, "", false);
 			Pathfinder_Track_Add("puppet_2_2", "PathNodeArea_Red_" + b, 0.0f, 0.5f, "", false);
 		}
-		
+		*/
 		for(int c = 1; c <= 12; c++)
 		{
 			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_Cargo_robot_" + c, 0.0f, 0.5f, "", false);
 			cLux_AddDebugMessage("PathNode_Cargo_robot_" + c);
 		}
 		AddMonstersToWorld();
-		UpdateMonsterPathNode();
 	}
 	
 	void AddMonstersToWorld()
 	{
 		Pathfinder_Track_Start("puppet_1_1", true, 1.0f, "");
 		Pathfinder_Track_Start("maintenance_infected_1", true, 1.0f, "");
-		
-		if(isPlayerinArea2 == true)
-		{
-			Map_AddTimer("timer_RemoveMonsterLight",2.5f,"timer_RemoveMonsterLight");
-			Entity_SetActive("puppet_2_2", true);
-			Pathfinder_Track_Start("puppet_2_1", true, 1.0f, "");
-			Pathfinder_Track_Start("puppet_2_2", true, 1.0f, "");
-			Pathfinder_MoveToNode("puppet_2_2","PathNodeArea_Red_429","",0.0f,false,"");	
-		}
 	}
 	
 	void timer_RemoveMonsterLight(const tString &in asTimer)
@@ -422,15 +411,11 @@ class cScrMap : iScrMap
 		Light_SetVisible("Spot_monsterReveal",false);
 	}
 	
-	void UpdateMonsterPathNode(){
-		
-		if(hasChipBeenAquired == true)
-		{
-			Entity_SetActive("puppet_2_1", true);
-		}
-	}
 ///setup end
 //////////////////////////////////
+
+	bool isPlayerinArea2 = false;
+	bool hasChipBeenAquired = false;
 
 	void TramIntroSeq()
 	{
@@ -538,38 +523,6 @@ class cScrMap : iScrMap
 	{
 		Entity_SetActive("InteractAuxArea_3", false);
 		return false;
-	}
-
-
-	void omnitool_panel_office_OnConnectionStateChange(const tString &in asEntity, int alState)
-	{
-		if(alState == 1)
-		{
-			Button_SetLocked("OfficeEnteranceDoor*",false,true);
-			Entity_SetActive("OmnitoolArea_1", false);
-		}
-	}
-	
-	bool bIsPlayerInCave = false;
-	bool TriggerArea_cave(const tString &in asParent, const tString &in asChild, int alState)
-	{
-		if(alState == 1)//enter
-		{
-			bIsPlayerInCave = true;
-			Billboard_SetVisible("Billboard_107", true);
-			Billboard_SetVisible("Billboard_102", true);
-			Billboard_SetVisible("Billboard_101", true);
-		}
-		else if (alState == -1)//leave
-		{
-			Billboard_SetVisible("Billboard_107", false);
-			Billboard_SetVisible("Billboard_102", false);
-			Billboard_SetVisible("Billboard_101", false);
-			
-			bIsPlayerInCave = false;
-		}
-
-		return true;
 	}
 
  
@@ -818,20 +771,6 @@ class cScrMap : iScrMap
 		Sound_Play("Sound_1",0.0f,false);
 	}
 	
-	void wau_flower_2_Callback(const tString &in asEntity)
-	{
-		Map_AddTimer("timer_WauPowerDraw2",1.75f,"timer_WauPowerDraw2");
-	}
-	
-	
-	void timer_WauPowerDraw2(const tString &in asTimer)
-	{
-		MovingButton_SetLocked("button_round_small_4",true,true);
-		Lamp_SetLit("tablelamp_1",false,true);
-				
-		Entity_SetActive("Sound_3",true);
-		Sound_Play("Sound_3",0.0f,false);
-	}
 	
 	void wau_flower_3_Callback(const tString &in asEntity)
 	{
@@ -847,61 +786,7 @@ class cScrMap : iScrMap
 		Lamp_SetFlickerActive("ceiling_theta_large_10",true);		
 	}
 
-	//--//--//--//Lab 2//--//--//--// V
-	
-	
-	void UnlockLabDoors()
-	{
-		Button_SetLocked("LabDoor_*",false,false);
-		Button_SetLocked("ChemStorage_Panel",false,false);
-		Terminal_SetAllowInteraction("monitor_RedArea_Lore",true);
-		Terminal_SetGuiActive("monitor_RedArea_Lore",true,0.1f);
-		Light_SetBrightness("SpotLight_computer_redarea_1",1.0f);
-	}
-	
-	int mlWindowBreaks = 0;
-	void OnBreakWindow(const tString &in asEntity)
-	{
-		++mlWindowBreaks;
-		cLux_AddDebugMessage("breaks : " + mlWindowBreaks);
-		if (mlWindowBreaks == 1)
-		{
-			
-			Entity_SetActive("window_shatter_state1",false);
-			Entity_SetActive("window_shatter_state2_indestructable",true);
-			
-			ParticleSystem_CreateAtEntity("01_01_break_window_damaged","01_01_break_window_damaged.ps","WindowCrackEffectArea",false);
-			
-			//DebugMyParticle("01_01_break_window_damaged", "window_shatter_state2_indestructable");
-			
-			Map_AddTimer("TimerSwapWindow",0.75f,"TimerSwapWindow");
-			Sound_CreateAtEntity("WindowCrack", "01_01_upsilon_awake/sfx/window_smash/glass_crack", "WindowSoundSource");
-		}
-		
-		if (mlWindowBreaks == 2)
-		{
-			Entity_SetActive("window_shatter_state2",false);
-			Entity_SetActive("window_shatter_state3",true);
-			ParticleSystem_CreateAtEntity("01_01_break_window","01_01_break_window.ps","WindowCrackEffectArea",false);
-			Sound_CreateAtEntity("WindowCrack", "01_01_upsilon_awake/sfx/window_smash/glass_smash", "WindowSoundSource");
-			Pathfinder_MoveToNode("puppet_2_2","PathNodeArea_Red_179","",0.0f,false,"");
-		}
-	}
-	
-	//--------------------------------------------------------
-	
-	void TimerSwapWindow(const tString &in asTimer)
-	{
-		Entity_SetActive("window_shatter_state2_indestructable",false);
-		Entity_SetActive("window_shatter_state2",true);
-		
-	}
-	
-	//--//--//--//Lab 2//--//--//--// ^
-	//monster logic
-	
-	
-	
+
 	bool MonsterSpawn(const tString &in asParent, const tString &in asChild, int alState)
 	{
 	
@@ -934,7 +819,8 @@ class cScrMap : iScrMap
 	}
 	
 	bool L1R1_onEnter(const tString &in asParent, const tString &in asChild, int alState)
-	{//NPC_flesher_notice1
+	{
+		//NPC_flesher_notice1
 		Music_Play("01_02_catwalk_collapse",0.4f, false, eMusicPrio_MinorEvent);
 		return false;
 	}
@@ -1129,138 +1015,7 @@ class cScrMap : iScrMap
 		SlideDoor_SetClosed("lab_3",true,false);
 		Sound_CreateAtEntity("lab_3_door_malfunction", "02_05_theta/sweeteners/light_flicker_event/die", "lab_3", 0.0f, false, 1.0f);
 	}
-	
-	/////////////////////////
-	////Fluid Logic
-	bool Fluid_HasBeenUsed = false;
-	
-	bool tracer_fluid_CanBeUsed(const tString &in asTool, const tString &in asEntity)
-	{
-		if (asEntity == "mindcoral_Dissolve" && Fluid_HasBeenUsed == false) return true;
-		return false;
-	}
 
-	bool tracer_fluid_OnUse(const tString &in asTool, const tString &in asEntity)
-	{
-		if (asEntity == "mindcoral_Dissolve")
-		{
-			Fluid_HasBeenUsed = true;
-			
-			Entity_SetActive("tracer_fluid_world", true); //Creates bottle prop
-			
-			Entity_SetActive("ToolArea_tracer", false); //removes toolarea
-			
-			Map_AddTimer("timer_RemoveBottle",1.5f,"timer_RemoveBottle"); //add timer for removing the bottle
-			Map_AddTimer("timer_DissolveMass",2.0f,"timer_DissolveMass"); //add timer for removing the mass
-			
-			Player_RemoveTool("Tracer_Fluid"); //removes tool fromm inventory
-			
-			ParticleSystem_CreateAtEntity("mind_coral_goo_splash_small_continuous","mind_coral_goo_splash_small_continuous.ps","Particle_goopour",false); //creates particle effect
-			
-			Entity_SetActive("Sound_pour",true); //creates sound entity
-			Sound_Play("Sound_pour",0.0f,false); //plays sound
-			
-			Billboard_SetVisible("Billboard_454", true);
-			Billboard_SetVisible("Billboard_455", true);
-			
-			//PreloadMap(); // begin preloading the next map 
-		}
-		
-		return false;		
-	}
-	
-	void DEV_MindcoralDisolve()
-	{
-		Fluid_HasBeenUsed = true;
-			
-		Entity_SetActive("tracer_fluid_world", true); //Creates bottle prop
-			
-		Entity_SetActive("ToolArea_tracer", false); //removes toolarea
-			
-		Map_AddTimer("timer_RemoveBottle",1.5f,"timer_RemoveBottle"); //add timer for removing the bottle
-		Map_AddTimer("timer_DissolveMass",2.0f,"timer_DissolveMass"); //add timer for removing the mass
-			
-		Player_RemoveTool("Tracer_Fluid"); //removes tool fromm inventory
-			
-		ParticleSystem_CreateAtEntity("mind_coral_goo_splash_small_continuous","mind_coral_goo_splash_small_continuous.ps","Particle_goopour",false); //creates particle effect
-			
-		Entity_SetActive("Sound_pour",true); //creates sound entity
-		Sound_Play("Sound_pour",0.0f,false); //plays sound
-			
-		Billboard_SetVisible("Billboard_454", true);
-		Billboard_SetVisible("Billboard_455", true);
-	}
-	
-	void timer_RemoveBottle(const tString &in asTimer)
-	{
-		Entity_SetActive("tracer_fluid_world", false);
-
-		Billboard_SetVisible("Billboard_454", false);
-		Billboard_SetVisible("Billboard_455", false);
-		
-		ParticleSystem_Destroy("mind_coral_goo_splash_small_continuous");
-		Sound_Stop("Sound_pour",0.1f);
-	}
-	
-	void timer_DissolveMass(const tString &in asTimer)
-	{
-		Entity_SetActive("mindcoral_Dissolve", false);
-		
-		Entity_SetInteractionDisabled("elevator_Chip",false);
-		Tool_SetHighlightActive("elevator_Chip",true);
-	}
-	
-	void Tracer_Fluid_OnPlayerInteract(const tString &in asEntity)
-	{
-		Music_PlayExt("02_05_brandonsapartment",false,1.85f,1.0f,0.0f,0.0f,eMusicPrio_BigEvent, false);
-		Light_SetBrightness("PointLight_492",0.0f);
-	}
-	
-	bool hasChipBeenAquired = false;
-	void elevator_Chip_OnPlayerInteract(const tString &in asEntity)
-	{
-		Entity_SetActive("puppet_1_1", false);
-		
-		Map_AddTimer("timer_SpawnEnemy",0.75f,"timer_SpawnEnemy");
-		
-		SlideDoor_SetOpenAmount("slidedoor_theta_small_2", 1.0f,true);
-		
-		hasChipBeenAquired = true;
-		
-		Music_PlayExt("03_02_body",false,1.85f,1.0f,0.0f,0.0f,eMusicPrio_BigEvent, false);
-		
-		PreloadMap();
-	}
-	
-	void timer_SpawnEnemy(const tString &in asTimer)
-	{
-		SlideDoor_SetClosed("slidedoor_theta_small_2", true, false);
-		
-		Sound_Play("monster_announce",1.0f,false);
-		
-		Entity_SetActive("DistortionArea_1", true);
-		Map_AddTimer("timer_Distortion",1.75f,"timer_Distortion");
-		
-		Pathfinder_Track_Start("puppet_2_1", true, 1.0f, "");
-		
-		UpdateMonsterPathNode();
-		
-		Player_StartLookAt("puppet_2_1",4.25f,1.5f,3.0f);
-		Map_AddTimer("chip_stoplook",0.5f,"chip_stoplook");
-		Emotion_PlayEventBreath("01_01_upsilon_awake/sfx/wake_up/nervous", 1);
-	}
-	
-	void timer_Distortion(const tString &in asTimer)
-	{
-		Entity_SetActive("DistortionArea_1", false);
-	}
-	
-	void chip_stoplook(const tString &in asTimer)
-	{
-		Player_StopLookAt(0.5f);
-	}
-	
-	
 	////////////////////////
 	//// Omnitool Logic
 	
@@ -1278,26 +1033,12 @@ class cScrMap : iScrMap
 		return false;
 	}	
 	
-
 	bool omnitool_OnUse(const tString &in asTool, const tString &in asEntity)
 	{
 		if (asEntity == "omnitool_panel_office")
 		{
 			CathTool_UseOnPanel("omnitool","omnitool_panel_office");
 			bOmnitool_hasOfficeOpened = true;
-		}
-		
-		if (asEntity == "ChemStorage_Panel" && RedAreaLockdownLifted == true) //sucesfull
-		{
-			CathTool_UseOnPanel("omnitool","ChemStorage_Panel");
-			bOmnitool_hasChemStorageBeenOpened = true;
-			Entity_SetActive("ChemStorage_Panel_Area", false);
-			SlideDoor_SetOpenableByAgent("LabDoor_9", true);
-		}
-		
-		if (asEntity == "ChemStorage_Panel" && RedAreaLockdownLifted == false)
-		{
-			CathTool_UseOnPanel("omnitool","ChemStorage_Panel");
 		}
 		
 		if (asEntity == "omnitool_panel_lab1_exit" && bOmnitool_haslab1Exit == false) 
@@ -2111,65 +1852,6 @@ class cScrMap : iScrMap
 		Button_SetLocked("door_elevatorroom_*",false,true);
 	}
 	
-	bool OfficeLightScare(const tString &in asParent, const tString &in asChild, int alState)
-	{
-		OfficeLightScare("");
-		return false;
-	}
-	
-	bool TriggerArea_office1_scare(const tString &in asParent, const tString &in asChild, int alState)
-	{
-		Map_AddTimer("timer_office1_scare",3.1f,"timer_office1_scare");
-		Lamp_SetFlickerActive("officeshutter_1_1",true);
-		Light_SetBrightness("SpotLight_13",0.0f);
-		return false;
-	}
-	
-	void timer_office1_scare(const tString &in asTimer)
-	{
-		Lamp_SetLit("officeshutter_1_1",false,true);
-		Button_SetLocked("officeshutter_1_panel",false,true);
-	}
-	
-	
-	
-	bool isPlayerinArea2 = false;
-	
-	bool EnterArea2(const tString &in asParent, const tString &in asChild, int alState)
-	{
-		enterArea2Checks();
-		
-		AddMonstersToWorld();
-		
-		isPlayerinArea2 = true;
-		
-		return true;
-	}
-	
-	void enterArea2Checks()
-	{
-		if(Entity_IsActive("puppet_1_1") == true)
-		{
-			Entity_SetActive("puppet_1_1", false);
-			Entity_SetActive("puppet_1_1", false);
-		}
-	
-	}
-	
-	
-	bool ExitArea2(const tString &in asParent, const tString &in asChild, int alState)
-	{
-		if (isPlayerinArea2 == true){
-		
-			isPlayerinArea2 = false;
-			Agent_SetAutoDisableWhenOutOfSightActive("puppet_2_1",true,1.0F);
-			Agent_SetAutoDisableWhenOutOfSightActive("puppet_2_2",true,1.0F);
-		}
-		return true;
-	}
-
-
-
 	bool EndStage(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		Map_AddTimer("timer_TryToChangeLevel",0.0f,"timer_TryToChangeLevel");
@@ -2194,6 +1876,231 @@ class cScrMap : iScrMap
 	{
 		Map_ChangeMap("02_under.hps","PlayerStartArea_1","","");
 	}
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// OFFICE  ///////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	void omnitool_panel_office_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Button_SetLocked("OfficeEnteranceDoor*",false,true);
+			Entity_SetActive("OmnitoolArea_1", false);
+		}
+	}
+	
+	bool OfficeLightScare(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		OfficeLightScare("");
+		return false;
+	}
+	
+	bool TriggerArea_office1_scare(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Map_AddTimer("timer_office1_scare",3.1f,"timer_office1_scare");
+		Lamp_SetFlickerActive("officeshutter_1_1",true);
+		Light_SetBrightness("SpotLight_13",0.0f);
+		return false;
+	}
+	
+	void timer_office1_scare(const tString &in asTimer)
+	{
+		Lamp_SetLit("officeshutter_1_1",false,true);
+		Button_SetLocked("officeshutter_1_panel",false,true);
+	}
+	
+	bool bIsPlayerInCave = false;
+	bool TriggerArea_cave(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)//enter
+		{
+			bIsPlayerInCave = true;
+			Billboard_SetVisible("Billboard_107", true);
+			Billboard_SetVisible("Billboard_102", true);
+			Billboard_SetVisible("Billboard_101", true);
+		}
+		else if (alState == -1)//leave
+		{
+			Billboard_SetVisible("Billboard_107", false);
+			Billboard_SetVisible("Billboard_102", false);
+			Billboard_SetVisible("Billboard_101", false);
+			
+			bIsPlayerInCave = false;
+		}
+
+		return true;
+	}
+	
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AREA 2  //////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//       HATCH AIRVENT LOGIC       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	bool mbInTunnel_climb = false;
+	
+	
+	//doorway
+	bool dw_hatch_airvent(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			mbInTunnel_climb = true;
+			cLux_AddDebugMessage("Entered tunnels");
+		}
+		else if(alState == -1)
+		{
+			mbInTunnel_climb = false;
+			cLux_AddDebugMessage("Left tunnels");
+		}
+		
+		Entity_SetActive("climbArea_hatch_airvent_*", !mbInTunnel_climb);
+		Player_SetJumpDisabled(mbInTunnel_climb);
+
+		return true;
+	}
+	
+	void hatch_airvent_bottom_button_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if (alState == 1) //TimerDectivateEntity
+		{//open
+			if (!mbInTunnel_climb)
+			{
+				Map_AddTimer("climbArea_hatch_airvent_bottom", 0.75, "TimerActivateEntity");
+				Map_AddTimer("climbArea_hatch_airvent_bottom", 15.75, "TimerDectivateEntity");
+			}
+				
+		}
+		else
+		{ //close
+			Entity_SetActive("climbArea_hatch_airvent_bottom", false);
+			Map_RemoveTimer("climbArea_hatch_airvent_bottom");
+		}
+	}
+	
+	void hatch_airvent_top_button_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if (alState == 1)
+		{//open
+			if (!mbInTunnel_climb)
+			{
+				Map_AddTimer("climbArea_hatch_airvent_top", 0.75, "TimerActivateEntity");
+				Map_AddTimer("climbArea_hatch_airvent_top", 15.75, "TimerDectivateEntity");
+			}
+				
+		}
+		else
+		{ //close
+			Entity_SetActive("climbArea_hatch_airvent_top", false);
+			Map_RemoveTimer("climbArea_hatch_airvent_top");
+		}
+	}
+	
+	bool TriggerArea_airvent_trim(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("dw_hatch_airvent", false);
+		}
+		else if(alState == -1)
+		{
+			Entity_SetActive("dw_hatch_airvent", true);
+		}
+		return true;
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//       HATCH SHORTCUT LOGIC       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	bool mbInTunnel_shortcut = false;
+	
+	bool dw_hatch_shortcut(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			mbInTunnel_shortcut = true;
+			cLux_AddDebugMessage("Entered tunnels");
+		}
+		else if(alState == -1)
+		{
+			mbInTunnel_shortcut = false;
+			cLux_AddDebugMessage("Left tunnels");
+		}
+		
+		Entity_SetActive("climbArea_hatch_airvent_*", !mbInTunnel_shortcut);
+		Player_SetJumpDisabled(mbInTunnel_shortcut);
+
+		return true;
+	}
+	
+	void hatch_room_button_1_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if (alState == 1)
+		{//open
+			if (!mbInTunnel_shortcut)
+			{
+				Map_AddTimer("climbArea_hatch_shortcut_room", 0.75, "TimerActivateEntity");
+				Map_AddTimer("climbArea_hatch_shortcut_room", 15.75, "TimerDectivateEntity");
+			}
+				
+		}
+		else
+		{ //close
+			Entity_SetActive("climbArea_hatch_shortcut_room", false);
+			Map_RemoveTimer("climbArea_hatch_shortcut_room");
+		}
+	}
+	
+	void hatch_hallway_button_2_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if (alState == 1)
+		{//open
+			if (!mbInTunnel_shortcut)
+			{
+				Map_AddTimer("climbArea_hatch_shortcut_hallway", 0.75, "TimerActivateEntity");
+				Map_AddTimer("climbArea_hatch_shortcut_hallway", 15.75, "TimerDectivateEntity");
+			}
+		}
+		else
+		{ //close
+			Entity_SetActive("climbArea_hatch_shortcut_hallway", false);
+			Map_RemoveTimer("climbArea_hatch_shortcut_hallway");
+		}
+	}
+	
+	bool TriggerArea_shortcut_trim(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(alState == 1)
+		{
+			Entity_SetActive("dw_hatch_shortcut", false);
+		}
+		else if(alState == -1)
+		{
+			Entity_SetActive("dw_hatch_shortcut", true);
+		}
+		return true;
+	}
+	
+	
+	
+
+	
+	
+	void elevator_Chip_OnPlayerInteract(const tString &in asEntity)
+	{
+		hasChipBeenAquired = true;
+		//PreloadMap();
+	}
+	
+
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  TERMINALS  ///////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	
 //---------------------------------------------------
@@ -2228,6 +2135,7 @@ class cScrMap : iScrMap
  
 	void ipad_OnPlayerInteract(const tString &in asEntity)
 	{
+		Player_SetFlashlightDisabled(true);
 	}
 	
 	void ipad_OnGui(const tString&in asEntityName, float afTimeStep) /////////////////////////////////////////////////////////////////////// IPAD                        IPAD
@@ -2249,133 +2157,133 @@ class cScrMap : iScrMap
 			
 			{			
 				cLightAppButton lock = CreateLightButton("map_element_1", "map_element_1");
-				lock.msFocusText = "DoorPanel_MedLab";
+				lock.msFocusText = "LCA_1";
 				lock.mvNrmPos = cVector3f(0.1, 0.1, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_2", "map_element_2");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_2";
 				lock.mvNrmPos = cVector3f(0.2, 0.2, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_3", "map_element_3");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_3";
 				lock.mvNrmPos = cVector3f(0.3, 0.3, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_4", "map_element_4");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_4";
 				lock.mvNrmPos = cVector3f(0.4, 0.4, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_5", "map_element_5");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_5";
 				lock.mvNrmPos = cVector3f(0.5, 0.5, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_6", "map_element_6");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_6";
 				lock.mvNrmPos = cVector3f(0.6, 0.6, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_7", "map_element_7");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_7";
 				lock.mvNrmPos = cVector3f(0.7, 0.7, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_8", "map_element_8");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_8";
 				lock.mvNrmPos = cVector3f(0.8, 0.8, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_9", "map_element_9");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_9";
 				lock.mvNrmPos = cVector3f(0.9, 0.9, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_10", "map_element_10");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_10";
 				lock.mvNrmPos = cVector3f(0.91, 0.91, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_11", "map_element_11");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_11";
 				lock.mvNrmPos = cVector3f(0.92, 0.92, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_12", "map_element_12");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_12";
 				lock.mvNrmPos = cVector3f(0.93, 0.93, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_13", "map_element_13");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_13";
 				lock.mvNrmPos = cVector3f(0.94, 0.94, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_14", "map_element_14");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_14";
 				lock.mvNrmPos = cVector3f(0.95, 0.95, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_15", "map_element_15");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_15";
 				lock.mvNrmPos = cVector3f(0.96, 0.96, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_16", "map_element_16");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_16";
 				lock.mvNrmPos = cVector3f(0.97, 0.97, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_17", "map_element_17");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_17";
 				lock.mvNrmPos = cVector3f(0.98, 0.98, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_18", "map_element_18");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_18";
 				lock.mvNrmPos = cVector3f(0.99, 0.99, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
 			
 			{
 				cLightAppButton lock = CreateLightButton("map_element_19", "map_element_19");
-				lock.msFocusText = "DoorPanel_Infirmary";
+				lock.msFocusText = "LCA_19";
 				lock.mvNrmPos = cVector3f(0.995, 0.995, 6);
 				StationGui_LightApp_AddLock(lock);
 			}
@@ -2402,6 +2310,248 @@ class cScrMap : iScrMap
 	{
 		bInIPAD = false;
 	}
+	
+	bool omni_inserted = true;
+	bool t_marked = false;
+	float loadingTime = 3.5f;
+
+	void computer_panel_door_control_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		if(t_marked)
+		{
+			loadingTime = 0.85f;
+		}
+
+			ImGui_SetTransCategory("Security_Computer");
+	
+			StationGuiBG_Scanlines();
+			StationGuiBG_Backdrop();
+			
+			StationGuiBG_Taskbar("theta");
+			
+			if (StationGui_DrawAndCheckErrors()) return;
+			
+			if(!omni_inserted)
+			{
+				StationGui_BigStatusMessage_Old("TechTermLocked", gStationGuiColor_Warning, 0.875);
+			}
+			else
+			{
+				int lActiveApp = StationGui_GetActiveApp(eCTA_Splash);
+				bool bBackButton = true;
+				switch(lActiveApp)
+				{
+					
+					//initial unlocked screen
+					case eCTA_Splash:
+						if(StationGui_LoadingWindow("loading_terminal", "ComputerApp_Door_Reading_Caption", "", loadingTime, true,cVector2f(0.6,0.2),1.5f))
+						{
+							Sound_CreateAtEntity("sfx_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_ granted", asEntityName, 0.0f, false, 1.0f);
+							StationGui_SetActiveApp(eCTA_MainMenu);
+						}
+
+						bBackButton = false;
+					break;
+					
+					//main menu
+					case eCTA_MainMenu:
+						StationGui_AddApp("ComputerApp_Door_Control_Title",omni_inserted,eCTA_Loading);
+						StationGui_AddApp("ComputerApp_Door_Control_ADMIN",false,eCTA_Loading);
+						StationGui_AddApp("ComputerApp_Door_Control_COMS",false,eCTA_Loading);
+						StationGui_MainMenu();
+						bBackButton = false;
+					break;
+			
+					//loading into door control
+					case eCTA_Loading:
+                    
+						if(StationGui_LoadingWindow("loading_terminal", "ComputerApp_Door_Loading_Caption", "ComputerApp_Door_Loading_Text", loadingTime, true,cVector2f(0.6,0.2),1.5f))
+						{
+							t_marked = true;
+							Sound_CreateAtEntity("sfx_terminal_welcome", "Entities_Station/tech/terminal_beeps/omicron_lockdown_puzzle_button", asEntityName, 0.0f, false, 1.0f);
+							StationGui_SetActiveApp(eCTA_Control);
+						}
+						bBackButton = false;
+					break;
+				
+				
+					//door control
+					case eCTA_Control:
+						DoDoorControl(asEntityName);
+						bBackButton = true;
+					break;
+					
+
+
+				}
+		
+				StationGui_BackButton(bBackButton);
+			}
+			
+			
+
+
+	}
+	
+	int index = -1;
+	tString tLabel = "";
+	
+	bool DoDoorControl(const tString&in asEntityName)
+	{
+		cImGuiWindowData windowData = StationGui_CreateDefaultWindowData();
+				
+		cImGuiButtonData buttonData = StationGui_CreateToggleButtonData();
+		ImGui_SetDefaultButton(buttonData);
+		
+		ImGui_DoWindowStart("DoorControlApp_Label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.5, 0.85)));
+		
+		
+		if(ImGui_DoButton("button_1", "DC_button_1", ImGui_NrmPos(0.075, 0.1, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			if(index == 0)
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+			}
+			else
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				index = 0;
+				tLabel = "DC_button_1";
+				SlideDoor_SetClosed("area4_bulkhead_*",true,false);
+				SlideDoor_SetClosed("area4_bulkhead_1",false,false);
+				
+			}
+			
+		}
+		
+		if(ImGui_DoButton("button_2", "DC_button_2", ImGui_NrmPos(0.075, 0.2, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			if(index == 1)
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+			}
+			else
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				index = 1;
+				tLabel = "DC_button_2";
+				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
+				SlideDoor_SetClosed("area4_bulkhead_2",false,true);
+			}
+			
+		}
+		
+		if(ImGui_DoButton("button_3", "DC_button_3", ImGui_NrmPos(0.075, 0.3, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			if(index == 2)
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+			}
+			else
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				index = 2;
+				tLabel = "DC_button_3";
+				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
+				SlideDoor_SetClosed("area4_bulkhead_3",false,true);
+			}
+			
+		}
+		
+		if(ImGui_DoButton("button_4", "DC_button_4", ImGui_NrmPos(0.075, 0.4, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			if(index == 3)
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+			}
+			else
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				index = 3;
+				tLabel = "DC_button_4";
+				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
+				SlideDoor_SetClosed("area4_bulkhead_4",false,true);
+			}
+			
+		}
+		
+		if(ImGui_DoButton("button_5", "DC_button_5", ImGui_NrmPos(0.075, 0.5, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			if(index == 4)
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+			}
+			else
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				index = 4;
+				tLabel = "DC_button_5";
+				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
+				SlideDoor_SetClosed("area4_bulkhead_5",false,true);
+			}
+			
+		}
+		
+		if(ImGui_DoButton("button_6", "DC_button_6", ImGui_NrmPos(0.075, 0.6, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			if(index == 5)
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+			}
+			else
+			{
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				index = 5;
+				tLabel = "DC_button_6";
+				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
+				SlideDoor_SetClosed("area4_bulkhead_6",false,true);
+			}
+			
+		}
+		
+		
+		ImGui_DoWindowEnd();
+		
+		cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+		textFrame.mbUseBackgroundGfx = false;
+		textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+		textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+		
+		ImGui_DoWindowStart("DoorControlApp_Label2", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.55, 0.02, 1)), ImGui_NrmSize(cVector2f(0.425, 0.85)));
+		
+		textFrame.mFontAlign = eFontAlign_Left;	
+		
+		cImGuiTextFrameData textFrame2 = textFrame;
+		textFrame2.mColorText = cColor_Red;
+		
+		cImGuiTextFrameData textFrame3 = textFrame;
+		textFrame3.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.03);
+		
+		cImGuiTextFrameData textFrame4 = textFrame;
+		textFrame4.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.055);
+		textFrame4.mColorText = cColor(0.1328f,0.621f,0.6f,1.0f);
+		
+		
+		ImGui_DoTextFrameExt("DC_power", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.075, 1), ImGui_NrmSizeGroup(.4, .5));	
+		
+		ImGui_DoTextFrameExt("DC_crit", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame2, ImGui_NrmPosGroup(.4, 0.075, 1), ImGui_NrmSize(cVector2f(0.5, 0.85)));	
+		
+		ImGui_DoTextFrameExt("DC_text", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame3, ImGui_NrmPosGroup(.01, 0.2, 1), ImGui_NrmSize(cVector2f(.4, 1)));	
+		
+		ImGui_DoTextFrameExt("DC_rerout", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.5, 1), ImGui_NrmSizeGroup(1, 1));	
+		
+		ImGui_DoTextFrameExt(tLabel, ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame4, ImGui_NrmPosGroup(0.1, 0.575, 1), ImGui_NrmSizeGroup(1, 1));	
+		
+		ImGui_DoWindowEnd();
+		
+		
+		
+		return true;
+	}
+
+
+
+
 	
  //-------------------------------------------------------
 	void panel_infoTrain1(const tString&in asEntityName, float afTimeStep)
@@ -2840,110 +2990,6 @@ class cScrMap : iScrMap
 
 	}
 	
-	bool RedAreaLockdownLifted = false;
-
-	void monitor_RedArea_Security_OnGui(const tString&in asEntityName, float afTimeStep)
-	{
-		ImGui_SetTransCategory("Security_Computer");// sets Language
-
-		StationGuiBG_Scanlines();//adds scanlines
-		StationGuiBG_Backdrop();//adds logo
-		StationGuiBG_Taskbar("theta");//adds logo on bottom
-			
-		if (StationGui_DrawAndCheckErrors()) return; //stuff
-		
-		
-		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu_RedArea);
-		bool bBackButton = true;
-			
-            switch(lActiveApp)
-            {
-				
-			//main menu
-                case eComputerTerminalApp_MainMenu_RedArea:
-				if(RedAreaLockdownLifted==false){
-					  StationGui_AddApp("ComputerApp_RedArea_Security_Lockdown_Title",true,eComputerTerminalApp_LiftLockdown_RedArea);//lift lockdown button
-				}else{
-					 StationGui_AddApp("ComputerApp_RedArea_Security_Log_Title",true,eComputerTerminalApp_LiftLockdown_RedArea);//view log button
-				}
-                 
-				   StationGui_AddApp("ComputerApp_RedArea_Security_Lore_Title",true,eComputerTerminalApp_SecurityLog);//view security log button
-                   StationGui_MainMenu();
-                   bBackButton = false;
-				break;
-			
-			//log window
-                case eComputerTerminalApp_LiftLockdown_RedArea:
-                    StationGui_TextReaderSingle("ComputerApp_RedArea_Security_Log_Title", "ComputerApp_RedArea_Security_Log_Text"); //adds window title and text
-
-					RedAreaLockdown();
-                    bBackButton = true;
-
-				break;
-				
-				 case eComputerTerminalApp_SecurityLog:
-                    StationGui_TextReaderSingle("ComputerApp_RedArea_Security_Lore_Title", "ComputerApp_RedArea_Security_Lore_Text"); //add spoopy lore log
-                    bBackButton = true;
-
-				break;
-		
-            }
-		
-            StationGui_BackButton(bBackButton);
-	}
-	
-	void RedAreaLockdown()
-	{
-		if (RedAreaLockdownLifted == false){
-			Entity_SetActive("powersound_1",true);
-			Sound_Play("powersound_1",0.0f,false);
-		}
-		UnlockLabDoors();
-		UpdateLockedDoorStates();
-		RedAreaLockdownLifted = true;
-	}
-
-	void monitor_RedArea_Lore_OnGui(const tString&in asEntityName, float afTimeStep)
-	{
-		ImGui_SetTransCategory("Security_Computer");// sets Language
-
-		StationGuiBG_Scanlines();//adds scanlines
-		StationGuiBG_Backdrop();//adds logo
-		StationGuiBG_Taskbar("theta");//adds logo on bottom
-			
-		if (StationGui_DrawAndCheckErrors()) return; //stuff
-		
-		
-		int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu_RedArea);
-		bool bBackButton = true;
-			
-            switch(lActiveApp)
-            {
-				
-			//main menu
-                case eComputerTerminalApp_MainMenu_RedArea:
-                  
-				  StationGui_AddApp("ComputerApp_RedArea_Security_Lore_Title",true,eComputerTerminalApp_SecurityLog);//view security log button
-				   
-                    StationGui_MainMenu();
-                    bBackButton = false;
-				break;
-			
-			
-			//log window
-                case eComputerTerminalApp_SecurityLog:
-                    StationGui_TextReaderSingle("ComputerApp_RedArea_Security_Lore_Title", "ComputerApp_RedArea_Security_Lore_Text"); //add spoopy lore log
-                    bBackButton = true;
-		
-				break;
-				
-		
-            }
-		
-            StationGui_BackButton(bBackButton);
-	}
-	
-	
 	 //} END Terminal *Name Of Terminal*
 	 //} END TERMINALS
 	 
@@ -3058,12 +3104,9 @@ class cScrMap : iScrMap
 		
 		bool CC_needacid_diag(const tString &in asParent, const tString &in asChild, int alState)
 		{
-
 			Voice_Play("NeedChemical", -1, "", 10);
 			return false;
 		}
-
-		 //-------------------------------------------------------
 
 		bool Trigger_logoBlink(const tString &in asParent, const tString &in asChild, int alState)
 		{
@@ -3074,7 +3117,6 @@ class cScrMap : iScrMap
 		
 		void timer_spot_small_1(const tString &in asTimer)
 		{
-			
 			Lamp_SetFlickerActive("spot_small_1",false);
 		}
 		
@@ -3107,4 +3149,15 @@ class cScrMap : iScrMap
 				
 			Sequence_End();
 		}
+		
+		void TimerActivateEntity(const tString &in asTimer)
+		{
+			Entity_SetActive(asTimer, true);
+		}
+		
+		void TimerDectivateEntity(const tString &in asTimer)
+		{
+			Entity_SetActive(asTimer, false);
+		}
+	
 }

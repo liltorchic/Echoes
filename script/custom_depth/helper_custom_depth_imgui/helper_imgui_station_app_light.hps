@@ -70,7 +70,7 @@ void StationGui_LightApp(const cStationGui_LightAppSettings &in aSettings = cSta
 	////////////////
 	// Setup
 	tString sPrevLang = ImGui_GetTransCategory();
-	ImGui_SetTransCategory("StationGUI");
+	ImGui_SetTransCategory("Security_Computer");
 	
 	ImGui_SetStateInt("LightApp_FocusIndex", -1);
 	
@@ -81,8 +81,7 @@ void StationGui_LightApp(const cStationGui_LightAppSettings &in aSettings = cSta
 	
 	////////////////
 	// Map window
-	ImGui_DoWindowStart("DoorControlApp_Label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.95, 0.65)));
-	ImGui_SetTransCategory(sPrevLang);
+	ImGui_DoWindowStart("LightControlApp_Label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.95, 0.65)));
 	
 	ImGui_SetAlignment(eImGuiAlign_CenterCenter);
 	
@@ -91,7 +90,6 @@ void StationGui_LightApp(const cStationGui_LightAppSettings &in aSettings = cSta
 	
 	ImGui_DoImage(aSettings.mMapBackground, ImGui_NrmPosGroup(0.5, 0.5, 0.25), ImGui_NrmSizeGroup(1));
 	//ImGui_DoTextFrameExt("use arrow keys to navigate", ImGui_NrmSizeGroup(0.125, 0.12), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
-	ImGui_DoLabelExt("use arrow keys to navigate", label, ImGui_NrmPosGroup(0.5, 0.5, 3), ImGui_NrmSizeGroup(1, 1), 1.5);
 	
 	////////////////////////
 	// Iterate buttons
@@ -115,31 +113,40 @@ void StationGui_LightApp(const cStationGui_LightAppSettings &in aSettings = cSta
 	
 	/////////////////////////////////////
 	// Room info text
-	ImGui_SetTransCategory("StationGUI");
-	ImGui_DoWindowStart("DoorControlApp_RoomInfoHeader", StationGui_CreateDefaultWindowData(), 
+
+	ImGui_DoWindowStart("LightControlApp_InfoHeader", StationGui_CreateDefaultWindowData(), 
 						ImGui_NrmPos(cVector3f(0.02, 0.7, 2)), ImGui_NrmSize(cVector2f(0.95, 0.28)));
 		int lFousIndex = ImGui_GetStateInt("LightApp_FocusIndex", -1);
+		
+		cImGuiLabelData label2 = label;
+		label2.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.025);
+		label2.mColorText = cColor(0.1328f,0.621f,0.6f,1.0f);
+		
+		ImGui_DoLabelExt("LightControlApp_wasd", label2, ImGui_NrmPosGroup(0.05, 0.1, 3), ImGui_NrmSizeGroup(1, 1), 1.5);
+		ImGui_DoLabelExt("LightControlApp_enter", label2, ImGui_NrmPosGroup(0.05, 0.3, 3), ImGui_NrmSizeGroup(1, 1), 1.5);
+		
 		if (lFousIndex != -1)
 		{
-			ImGui_SetTransCategory(sPrevLang);
-			ImGui_DoTextFrameExt(gvDoorControlButtons[lFousIndex].msFocusText, ImGui_NrmSizeGroup(0.125, 0.12), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
-			ImGui_SetTransCategory("StationGUI");
+
+			ImGui_DoTextFrameExt(gvDoorControlButtons[lFousIndex].msFocusText, ImGui_NrmSizeGroup(0.05, 0.05), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
+
 			
 			label.mFontAlign = eFontAlign_Center;
-			tString sEntry = bFocusLocked ? "DoorControlApp_Locked" : "DoorControlApp_Unlocked";
+			tString sEntry = bFocusLocked ? "LightControlApp_Locked" : "LightControlApp_Unlocked";
 			cVector2f vFontSize = label.mFont.mvSize;
 			ImGui_ResizeFontToFit(sEntry, label.mFont, ImGui_GetCurrentGroupSize().x*0.9, 1.5);
 			
-			ImGui_SetModColorMul(bFocusLocked ? gStationGuiColor_Warning : gStationGuiColor_Highlight2);
-			ImGui_DoLabelExt(sEntry, label, ImGui_NrmPosGroup(0.15, 0.4, 1), ImGui_NrmSizeGroup(1, -1), 1.5);
-			ImGui_SetModColorMul(cColor_White);
 			label.mFontAlign = eFontAlign_Left;
+			ImGui_SetModColorMul(bFocusLocked ? gStationGuiColor_Warning : gStationGuiColor_Highlight2);
+			ImGui_DoLabelExt(sEntry, label, ImGui_NrmPosGroup(0.05, 0.2, 1), ImGui_NrmSizeGroup(1, -1), 1.5);
+			ImGui_SetModColorMul(cColor_White);
+			
 			
 			label.mFont.mvSize = vFontSize;
 		}
 		else
 		{
-			ImGui_DoTextFrameExt("test", ImGui_NrmSizeGroup(0.125, 0.12), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
+			ImGui_DoTextFrameExt("LightControlApp_node", ImGui_NrmSizeGroup(0.05, 0.05), 0, 0, text, 0, ImGui_NrmSizeGroup(1, 1));
 		}
 		
 	ImGui_DoWindowEnd();
