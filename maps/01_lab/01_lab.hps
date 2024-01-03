@@ -38,6 +38,7 @@ bool bInIPAD = false;
 bool mbUsingIpad = false;
 bool clicked = false;
 int LightPeekLength = 4.0f;
+
 //--------------------------------------------------
  
 enum eComputerTerminalApp
@@ -1016,6 +1017,12 @@ class cScrMap : iScrMap
 		Sound_CreateAtEntity("lab_3_door_malfunction", "02_05_theta/sweeteners/light_flicker_event/die", "lab_3", 0.0f, false, 1.0f);
 	}
 
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// OMNITOOL  /////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	////////////////////////
 	//// Omnitool Logic
 	
@@ -1023,12 +1030,16 @@ class cScrMap : iScrMap
 	bool bOmnitool_hasChemStorageBeenOpened = false;
 	bool bOmnitool_hasOfficeOpened = false;
 	bool bOmnitool_haslab1Exit = false;
+	bool omni_inserted = false;
+	bool omnitoolUpdated = false;
 	
 	bool omnitool_CanBeUsed(const tString &in asTool, const tString &in asEntity)
 	{
 		if (asEntity == "ChemStorage_Panel" && bOmnitool_hasChemStorageBeenOpened == false) return true;
 		if (asEntity == "omnitool_panel_office" && bOmnitool_hasOfficeOpened == false) return true;
 		if (asEntity == "omnitool_panel_lab1_exit" && bOmnitool_haslab1Exit == false) return true;
+		if (asEntity == "TriggerArea_omniInsert" && omni_inserted == false) return true;
+		if (asEntity == "omnitool_panel_darkExit" && omnitoolUpdated == true) return true;
 			
 		return false;
 	}	
@@ -1049,6 +1060,18 @@ class cScrMap : iScrMap
 			bOmnitool_haslab1Exit = true;
 		}
 		
+		if (asEntity == "TriggerArea_omniInsert" && omni_inserted == false) 
+		{
+			Entity_SetActive("omnitool_1",true);
+			Player_RemoveTool("omnitool");
+			Player_RemoveTool("omnitool_1");
+			Entity_SetActive(asEntity,false);
+			Lamp_SetLit("omnislot_inside_right_light_1",true,true);
+			Lamp_SetLit("omnislot_inside_left_light_1",false,true);
+			Lamp_SetFlickerActive("omnislot_inside_left_light_1", false);
+			omni_inserted = true;
+		}
+		
 		return false;		
 	}
 	
@@ -1064,6 +1087,37 @@ class cScrMap : iScrMap
 	
 	}
 	
+	//airlock 2 exit panel
+	void omnitool_panel_darkExit_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+		}
+	}
+	
+	bool omnitool_1_OnPickUp(const tString &in asTool)
+	{
+		Lamp_SetLit("omnislot_inside_right_light_1",false,true);
+		Lamp_SetLit("omnislot_inside_left_light_1",true,true);
+		Entity_SetActive("TriggerArea_omniInsert",true);
+		omni_inserted = false;
+		return true;
+	}
+	
+	
+	void omnitool_OnPlayerInteract(const tString &in asEntity)
+	{
+		Entity_SetActive("TriggerArea_omniInsert",true);
+		Map_AddTimer("timer_cathpickup",0.90f,"timer_cathpickup");
+	}
+	
+	
+	void timer_cathpickup(const tString &in asTimer)
+	{
+		Music_PlayExt("02_06_formattedchip",false,4.5f,1.0f,0.15f,0.0f,eMusicPrio_BigEvent, false);
+	}
+
+
 	bool TriggerArea_airlock1_closeFinal(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		SlideDoor_SetClosed("airlock_1",true,false);
@@ -1090,17 +1144,7 @@ class cScrMap : iScrMap
 		Sound_Play("Sound_4",0.0f,false);;
 	}
 	
-	
-	void omnitool_OnPlayerInteract(const tString &in asEntity)
-	{
-		Map_AddTimer("timer_cathpickup",0.90f,"timer_cathpickup");
-	}
-	
-	
-	void timer_cathpickup(const tString &in asTimer)
-	{
-		Music_PlayExt("02_06_formattedchip",false,4.5f,1.0f,0.15f,0.0f,eMusicPrio_BigEvent, false);
-	}
+
 	
 	void timer_monsterScareSound(const tString &in asTimer)
 	{
@@ -1933,7 +1977,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
-	
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AREA 2  //////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1942,6 +1986,32 @@ class cScrMap : iScrMap
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//       HATCH AIRVENT LOGIC       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	bool mbInTunnel_climb = false;
+	
+	//  bool omnitoolUpdated
+	
+	void lever_dooroverride_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)
+		{
+			Lever_SetAutoMoveTarget(asEntity, -1);//target = min
+			Entity_SetInteractionDisabled(asEntity, true);
+			Map_AddTimer(asEntity, 2.0, "TimerResetLever");
+		}
+	}
+	
+	void TimerResetLever(const tString &in asTimer)
+	{
+		Lever_SetAutoMoveEnabled("lever_dooroverride", true);
+		Lever_SetStuckState("lever_dooroverride", 0, true);// not stuck
+		Button_SetLocked("area4_security_door_2*",false,true);
+		Button_SetLocked("area4_security_door_1*",true,true);
+		SlideDoor_SetOpenableByAgent("area4_security_door_1",false);
+		SlideDoor_SetOpenableByAgent("area4_security_door_2",true);
+		
+		Sound_CreateAtEntity("sfx_door_unlock", "Entities_Station/doors/theta_door/unlock", "area4_security_door_2", 0.0f, false, 3.0f);
+		Sound_CreateAtEntity("sfx_door_unlock", "Entities_Station/doors/upsilon/upsilon_button/upsilon_button_unlock", "area4_security_door_2_button_1", 0.0f, false, 3.0f);
+	}
+	
 	
 	
 	//doorway
@@ -2311,7 +2381,7 @@ class cScrMap : iScrMap
 		bInIPAD = false;
 	}
 	
-	bool omni_inserted = true;
+	
 	bool t_marked = false;
 	float loadingTime = 3.5f;
 
@@ -2333,6 +2403,7 @@ class cScrMap : iScrMap
 			
 			if(!omni_inserted)
 			{
+				StationGui_SetActiveApp(eCTA_Splash);
 				StationGui_BigStatusMessage_Old("TechTermLocked", gStationGuiColor_Warning, 0.875);
 			}
 			else
@@ -2410,11 +2481,11 @@ class cScrMap : iScrMap
 		{
 			if(index == 0)
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
 			}
 			else
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
 				index = 0;
 				tLabel = "DC_button_1";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,false);
@@ -2428,11 +2499,11 @@ class cScrMap : iScrMap
 		{
 			if(index == 1)
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
 			}
 			else
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
 				index = 1;
 				tLabel = "DC_button_2";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
@@ -2445,11 +2516,11 @@ class cScrMap : iScrMap
 		{
 			if(index == 2)
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
 			}
 			else
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
 				index = 2;
 				tLabel = "DC_button_3";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
@@ -2462,11 +2533,11 @@ class cScrMap : iScrMap
 		{
 			if(index == 3)
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
 			}
 			else
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
 				index = 3;
 				tLabel = "DC_button_4";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
@@ -2479,11 +2550,11 @@ class cScrMap : iScrMap
 		{
 			if(index == 4)
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
 			}
 			else
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
 				index = 4;
 				tLabel = "DC_button_5";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
@@ -2496,11 +2567,11 @@ class cScrMap : iScrMap
 		{
 			if(index == 5)
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
 			}
 			else
 			{
-				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_stop", asEntityName, 0.0f, false, 1.0f);
+				Sound_CreateAtEntity("sfx_terminal_bad", "Entities_Station/tech/terminal_beeps/datapad/datapad_back", asEntityName, 0.0f, false, 1.0f);
 				index = 5;
 				tLabel = "DC_button_6";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
@@ -2548,120 +2619,183 @@ class cScrMap : iScrMap
 		
 		return true;
 	}
+	
+	bool crawlspacePuzzleCompleted = false;
+	void crawlspace_small_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+			ImGui_SetTransCategory("Security_Computer");
+	
+			StationGuiBG_Scanlines();
+			
+			cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+			textFrame.mbUseBackgroundGfx = false;
+			textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+			textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+			
+			if(!crawlspacePuzzleCompleted)
+			{
+				ImGui_DoTextFrameExt("crawlspace_unsolved", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.075, 1), ImGui_NrmSizeGroup(.4, .5));	
+			}
+			else
+			{
+				ImGui_DoTextFrameExt("crawlspace_solved", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.075, 1), ImGui_NrmSizeGroup(.4, .5));
+			}
+
+	}
+	
+	void crawlspace_big_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+			ImGui_SetTransCategory("Security_Computer");
+	
+			StationGuiBG_Scanlines();
+			StationGuiBG_Backdrop();
+			
+			ImGui_DoWindowStart("crawlspace_big_label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.96, 0.96)));
+			ImGui_DoWindowEnd();
+	}
 
 
 
 
 	
- //-------------------------------------------------------
-	void panel_infoTrain1(const tString&in asEntityName, float afTimeStep)
+	int giberish = 0;
+	tString gib = "";
+	void display_locked_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
-		ImGui_SetTransCategory("Terminal_Info");
-		
-		
+		ImGui_SetTransCategory("Display");
 		StationGuiBG_Scanlines();
-		StationGuiBG_Backdrop();
-		//StationGuiBG_Taskbar("");
 		
-		if (StationGui_DrawAndCheckErrors()) return;
+		cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+		textFrame.mbUseBackgroundGfx = false;
+		textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+		textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+		textFrame.mColorText = cColor(0.3f,0.6f,0.6f,1.0f);
+		
+		
+		
+		ImGui_DoWindowStart("D_sched", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.6, 0.96)));
+		
+			ImGui_DoImage(cImGuiGfx("screen_x.tga"), ImGui_NrmPos(cVector3f(.15, .05, 2)), ImGui_NrmSize(cVector2f(.3, .4)));
+			ImGui_DoTextFrameExt("D_error", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.4, 0.7, 1), ImGui_NrmSizeGroup(1, 1));
+			ImGui_DoTextFrameExt("D_error", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.4, 0.85, 1), ImGui_NrmSizeGroup(1, 1));	
 			
-		cImGuiLabelData AREA;
-		cImGuiLabelData STATUS;
-
-		AREA.mFont.mvSize = cVector2f(100, 100);
-		STATUS.mFont.mvSize = cVector2f(150, 150);
+		ImGui_DoWindowEnd();
 		
-		//AREA.mColorText = cVector2f(100, 100);
-		
-		ImGui_DoImage(cImGuiGfx("screen_subway.tga"), cVector3f(300, 50, 0), cVector2f(400, 400));
 
-		ImGui_DoLabelExt("TRAM_1", AREA, cVector3f(350, 400, 0));
-		ImGui_DoLabelExt("INACTIVE", STATUS, cVector3f(300, 500, 0));
+		
+		ImGui_DoWindowStart("D_info", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.64, 0.02, 1)), ImGui_NrmSize(cVector2f(0.34, 0.96)));
+		ImGui_SetTransCategory("");
+		
+			for(int a = 1; a < 8; a++)
+			{	
+				for(int b = 1; b < 3; b++)
+				{	
+					giberish = cMath_RandRectl(1, 999999);
+					if(giberish < 10000 || giberish > 99999)
+					{
+						gib = "ERROR";
+					}
+					else
+					{
+						gib = "" + giberish;
+					}
+					
+					ImGui_DoTextFrameExt(gib, ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.1 + (b-1) * .4 , 0.12 * a, 1), ImGui_NrmSizeGroup(1, 1));
+				}
+			}
+			
+		ImGui_DoWindowEnd();
 	}
  //-------------------------------------------------------
-	void panel_infoTrain2(const tString&in asEntityName, float afTimeStep)
+	void display_tunnel_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
-		ImGui_SetTransCategory("Terminal_Info");
-		
-		
+		ImGui_SetTransCategory("Display");
 		StationGuiBG_Scanlines();
-		StationGuiBG_Backdrop();
-		//StationGuiBG_Taskbar("");
 		
-		if (StationGui_DrawAndCheckErrors()) return;
+		cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+		textFrame.mbUseBackgroundGfx = false;
+		textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+		textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+		textFrame.mColorText = cColor(0.3f,0.6f,0.6f,1.0f);
+		
+		
+		
+		ImGui_DoWindowStart("D_sched", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.6, 0.96)));
+		
+			ImGui_DoImage(cImGuiGfx("screen_subway.tga"), ImGui_NrmPos(cVector3f(.15, .05, 2)), ImGui_NrmSize(cVector2f(.3, .4)));
+			ImGui_DoTextFrameExt("D_entry1", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.2, 0.7, 1), ImGui_NrmSizeGroup(1, 1));
+			ImGui_DoTextFrameExt("D_entry2", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.2, 0.85, 1), ImGui_NrmSizeGroup(1, 1));	
 			
-		cImGuiLabelData AREA;
-		cImGuiLabelData STATUS;
-
-		AREA.mFont.mvSize = cVector2f(100, 100);
-		STATUS.mFont.mvSize = cVector2f(150, 150);
+		ImGui_DoWindowEnd();
 		
-		//AREA.mColorText = cVector2f(100, 100);
+		ImGui_DoWindowStart("D_info", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.64, 0.02, 1)), ImGui_NrmSize(cVector2f(0.34, 0.96)));
+		ImGui_SetTransCategory("");
 		
-		ImGui_DoImage(cImGuiGfx("screen_subway.tga"), cVector3f(300, 50, 0), cVector2f(400, 400));
-
-		ImGui_DoLabelExt("TRAM 2", AREA, cVector3f(350, 400, 0));
-		ImGui_DoLabelExt("ACTIVE", STATUS, cVector3f(300, 500, 0));
+			for(int a = 1; a < 8; a++)
+			{	
+				for(int b = 1; b < 3; b++)
+				{	
+					ImGui_DoTextFrameExt("" + cMath_RandRectl(10000, 99999), ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.1 + (b-1) * .4 , 0.12 * a, 1), ImGui_NrmSizeGroup(1, 1));
+				}
+			}
+			
+		ImGui_DoWindowEnd();
 	}
  //-------------------------------------------------------	
-	void panel_infoElevator(const tString&in asEntityName, float afTimeStep)
+	void display_elev_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
-		ImGui_SetTransCategory("Terminal_Info");
-		
-		
+		ImGui_SetTransCategory("Display");
 		StationGuiBG_Scanlines();
-		StationGuiBG_Backdrop();
-		//StationGuiBG_Taskbar("");
 		
-		if (StationGui_DrawAndCheckErrors()) return;
+		cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+		textFrame.mbUseBackgroundGfx = false;
+		textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+		textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+		textFrame.mColorText = cColor(0.3f,0.6f,0.6f,1.0f);
+		
+		
+		
+		ImGui_DoWindowStart("D_status", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.6, 0.96)));
+		
+			ImGui_DoImage(cImGuiGfx("screen_elevator.tga"), ImGui_NrmPos(cVector3f(.15, .05, 2)), ImGui_NrmSize(cVector2f(.3, .4)));
+			ImGui_DoTextFrameExt("D_elev", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.1, 0.7, 1), ImGui_NrmSizeGroup(1, 1));
+			ImGui_DoTextFrameExt("D_stair", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.35, 0.85, 1), ImGui_NrmSizeGroup(1, 1));	
 			
-		cImGuiLabelData AREA;
-		cImGuiLabelData STATUS;
-
-		AREA.mFont.mvSize = cVector2f(100, 100);
-		STATUS.mFont.mvSize = cVector2f(150, 150);
+		ImGui_DoWindowEnd();
 		
-		//AREA.mColorText = cVector2f(100, 100);
-		
-		ImGui_DoImage(cImGuiGfx("screen_elevator.tga"), cVector3f(300, 50, 0), cVector2f(400, 400));
 
-		ImGui_DoLabelExt("ELEVATOR", AREA, cVector3f(350, 400, 0));
-		//ImGui_DoLabelExt("INACTIVE", STATUS, cVector3f(275, 500, 0));
+		
+		ImGui_DoWindowStart("D_info", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.64, 0.02, 1)), ImGui_NrmSize(cVector2f(0.34, 0.96)));
+		ImGui_SetTransCategory("");
+		
+			for(int a = 1; a < 8; a++)
+			{	
+				for(int b = 1; b < 3; b++)
+				{	
+					giberish = cMath_RandRectl(1, 999999);
+					if(giberish < 10000 || giberish > 99999)
+					{
+						gib = "ERROR";
+					}
+					else
+					{
+						gib = "" + giberish;
+					}
+					
+					ImGui_DoTextFrameExt(gib, ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.1 + (b-1) * .4 , 0.12 * a, 1), ImGui_NrmSizeGroup(1, 1));
+				}
+			}
+			
+		ImGui_DoWindowEnd();
 	}
 	
 		void medroom_onGui(const tString&in asEntityName, float afTimeStep)
 		{
 			ImGui_SetTransCategory("Terminal_Chiproom");
 			StationGuiBG_Scanlines();
-			if (StationGui_DrawAndCheckErrors()) return;
 		}
 	
-	////////////////////////////
-	//Screen for power box
- //-------------------------------------------------------	
-	
-	void panel_powerbox(const tString&in asEntityName, float afTimeStep)
-	{
-		ImGui_SetTransCategory("Terminal_PowerBox");
-		
-		
-		StationGuiBG_Scanlines();
-		//StationGuiBG_Backdrop();
-		//StationGuiBG_Taskbar("");
-		
-		if (StationGui_DrawAndCheckErrors()) return;
-			
-		cImGuiLabelData AREA;
-		cImGuiLabelData STATUS;
-		cImGuiLabelData CHIP;
 
-		AREA.mFont.mvSize = cVector2f(80, 80);
-		STATUS.mFont.mvSize = cVector2f(100, 100);
-		CHIP.mFont.mvSize = cVector2f(50, 50);
-		
-		//ImGui_DoImage(cImGuiGfx("mods\ideamod\graphics\screen_subway.tga"), cVector3f(450, 100, 0), cVector2f(100, 100));
-		
-	}
  //-------------------------------------------------------	
  
  		float DelayValue(float afValue, float afStartValue, float afEndValue)
@@ -2932,7 +3066,7 @@ class cScrMap : iScrMap
 					
 
 					
-                    bBackButton = false;
+				bBackButton = false;
 				break;
             }
             StationGui_BackButton(bBackButton);
@@ -2942,52 +3076,197 @@ class cScrMap : iScrMap
 	
 	
 	bool LampToggle = false;
+	bool terminalOnce = false;
+	float aSinFeeder2 = 0.0f;
+	float aSinFeederSlow2 = 0.0f;
+	
+	
+	//first interactible terminal
 	void security_office_terminal(const tString&in asEntityName, float afTimeStep)
 	{
-			ImGui_SetTransCategory("Security_Computer");
-	
-			StationGuiBG_Scanlines();
-			StationGuiBG_Backdrop();
+		//setup
+		ImGui_SetTransCategory("Security_Computer");
+		StationGuiBG_Scanlines();
+		cImGuiWindowData windowData = StationGui_CreateDefaultWindowData();	
+		cImGuiButtonData buttonData = StationGui_CreateToggleButtonData();
+		ImGui_SetDefaultButton(buttonData);
+		cImGuiButtonData buttonData2 = buttonData;
+		buttonData2.mColorDisabled = cColor(0.0f, 0.5f, 0.5f, 1.0f);
+		buttonData2.mbUseDisabledColor = true;
+		cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+		textFrame.mbUseBackgroundGfx = false;
+		textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+		textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+		textFrame.mColorText = cColor(0.1328f,0.521f,0.5f,1.0f);
+		cImGuiTextFrameData textFrame2 = textFrame;
+		textFrame2.mColorText = cColor(0.1328f,0.821f,0.1f,1.0f);
+		aSinFeeder2 = (aSinFeeder2 + 0.5f);
+		aSinFeederSlow2 = (aSinFeederSlow2 + 0.01f);
+		cImGuiGaugeData gauge = StationGui_CreateDefaultGaugeData();
+				
+		if(aSinFeeder2 >= 25565.0f)
+		{
+			aSinFeeder2 = 0;
+		}
+				
+		if(aSinFeederSlow2 >= 25565.0f)
+		{
+			aSinFeederSlow2 = 0;
+		}
+					
+		if(terminalOnce == false)
+		{
+			bFreezerTerminalBool = true;
+						
+			//////////////////
+			// Setup timings
+			if (ImGui_GetStateInt("BootStarted", 0)==0)
+			{
+				ImGui_SetStateInt("BootStarted", 1);
+
+				ImGui_SetStateFloat("Compressor", 0);
+				ImGui_AddTimer("CompressorStart", 7);
 			
-			StationGuiBG_Taskbar("theta");
+				ImGui_SetStateFloat("temperature", 0);
+				ImGui_AddTimer("temperatureStart", 4);
 			
-			if (StationGui_DrawAndCheckErrors()) return;
+				ImGui_SetStateFloat("Coolant", 0);
+				ImGui_AddTimer("CoolantStart", 0.1);
 			
 			
+				ImGui_AddTimer("UnlockingStart", 9.5);
+			}
+		}
+					
+		//////////////////////////////////
+		// Timers for starting subsystems
+		if (ImGui_TimerOver("CompressorStart"))
+		{
+			ImGui_FadeStateFloat("Compressor", 1, 3, eEasing_QuadIn);
+		}
+		if (ImGui_TimerOver("temperatureStart"))
+		{
+			ImGui_FadeStateFloat("temperature", 1, 4, eEasing_QuartIn);
+		}
+		if (ImGui_TimerOver("CoolantStart"))
+		{
+			ImGui_FadeStateFloat("Coolant", 1, 6);
+		}
+		if (ImGui_TimerOver("UnlockingStart"))
+		{
+			ImGui_SetStateInt("Doors", 0);
+		}
+		
+		float fCooling = ImGui_GetStateFloat("Coolant", 0);
+					
+		gauge.mOrientation = eImGuiGaugeOrientation_Vert;
+		gauge.mGfxFill.mColor = cColor(0.2, 0.2, 1,2);
+		
+		//first window	
+		ImGui_DoWindowStart("ComputerApp_Lobby_Security_Lockdown_Title", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.47, 0.96)));
+				
+				cImGuiTextFrameData textFrame3 = textFrame;
+				textFrame3.mColorText = cColor(0.2f,0.3f,0.3f,1.0f);
+				ImGui_DoTextFrameExt("SC_psi", ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame3, ImGui_NrmPosGroup(0.325, 0.455, 1), ImGui_NrmSizeGroup(.4, .5));	
+				ImGui_DoTextFrameExt("SC_power", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame3, ImGui_NrmPosGroup(0.325, 0.9, 1), ImGui_NrmSizeGroup(.4, .5));	
+				textFrame3.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.028);
+				ImGui_DoTextFrameExt("SC_p1", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame3, ImGui_NrmPosGroup(0.17, 0.6, 1), ImGui_NrmSizeGroup(.4, .5));
+				ImGui_DoTextFrameExt("SC_p2", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame3, ImGui_NrmPosGroup(0.17, 0.73, 1), ImGui_NrmSizeGroup(.4, .5));
+				ImGui_DoTextFrameExt("SC_p3", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame3, ImGui_NrmPosGroup(0.17, 0.862, 1), ImGui_NrmSizeGroup(.4, .5));
+				/////////////////////////////////////////////
+				// 2 vertical gauge bars
+				cVector2f vBarSize = ImGui_NrmSizeGroup(cVector2f(0.25f, 0.35f));
+				ImGui_LayoutBegin(eImGuiLayout_X, cVector3f(0,0,1.0f), cVector2f_MinusOne, cVector2f(vBarSize.x*0.35f,0));
+						
+				float fHeight = DelayValue(fCooling, 0, 0.6);				
+				ImGui_DoGauge(gauge, fHeight-0.11f+(cMath_Cos(aSinFeederSlow2)/20.0f), ImGui_NrmPos(cVector3f(0.1,0.05,1.0f)), vBarSize);
+				fHeight = DelayValue(fCooling, 0.4, 1);
+				ImGui_DoGauge(gauge, fHeight-0.18f+(cMath_Cos(aSinFeederSlow2+2.5f)/11.0f), ImGui_NrmPos(cVector3f(0.1,0.05,1.0f)), vBarSize);
+				
+				ImGui_LayoutEnd();
+				
+				
+				float fCompressor = ImGui_GetStateFloat("Compressor", 0);
+					
+				gauge.mOrientation = eImGuiGaugeOrientation_Hori;
+				gauge.mGfxFill.mColor = cColor(1.0,0.0,0.0,1);
+				
 			
-            int lActiveApp = StationGui_GetActiveApp(eComputerTerminalApp_MainMenu);
-            bool bBackButton = true;
-            switch(lActiveApp)
-            {
-                case eComputerTerminalApp_MainMenu:
-				if(LampToggle==false){
-					  StationGui_AddApp("ComputerApp_Lobby_Security_Lockdown_Title",true,eComputerTerminalApp_LiftLockdown);
-				}else{
-					 StationGui_AddApp("ComputerApp_Lobby_Security_Lockdown_Log_Title",true,eComputerTerminalApp_LiftLockdown);
+				cVector2f vBarSize2 = ImGui_NrmSizeGroup(cVector2f(0.60f, 0.05f));
+				
+				ImGui_LayoutBegin(eImGuiLayout_Y, cVector3f(0,0,1.0f), cVector2f_MinusOne, cVector2f(0,vBarSize2.y*0.55f));
+				
+				////////////////////////////////////////
+				// 3 horizontal gauge bars
+				ImGui_DoGauge(gauge, 0.3, ImGui_NrmPos(cVector3f(0.1,0.5,1.0f)), vBarSize2);
+				
+				gauge.mGfxFill.mColor = cColor(1.0,0.4,0.0,1);
+				ImGui_DoGauge(gauge, 0.1, ImGui_NrmPos(cVector3f(0.1,0.05,1.0f)), vBarSize2);
+				
+				gauge.mGfxFill.mColor = cColor(1.0,0.6,0.0,1);
+				ImGui_DoGauge(gauge, 0.13, ImGui_NrmPos(cVector3f(0.1,0.05,1.0f)), vBarSize2);
+			
+				ImGui_LayoutEnd();
+			
+			ImGui_DoWindowEnd();
+		
+		
+		
+		ImGui_DoWindowEnd();
+			
+		ImGui_DoWindowStart("ComputerApp_Lobby_Security_Lockdown_Log_Title", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.51, 0.02, 1)), ImGui_NrmSize(cVector2f(0.47, 0.62)));
+				
+			if(ImGui_DoButton("button_1", "SC_button_1", ImGui_NrmPos(0.066, 0.1, 2), ImGui_NrmSize(0.33, 0.08f)))
+			{
+				Sound_CreateAtEntity("freezer_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_back", asEntityName, 0.0f, false, 1.0f); 
+			}
+			
+			if(ImGui_DoButtonExt("button_2", "SC_button_2", buttonData2, ImGui_NrmPos(0.066, 0.2, 2), ImGui_NrmSize(0.33, 0.08f)))
+			{
+				if(LampToggle == false)
+				{
+					LampToggle = true;	
+					Music_Play("01_02_enterfuseroom",0.5f, false, eMusicPrio_BigEvent);
+					SequenceMainReveal("");
+					Entity_SetActive("SerurityLamp_Green",true);
+					Entity_SetActive("SerurityLamp_Red",false);
+					Sound_CreateAtEntity("freezer_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_ granted", asEntityName, 0.0f, false, 1.0f); 
 				}
-                  //StationGui_Numpad("login", 4, 0.2, ImGui_NrmPos(cVector3f(0.125, 0.1, 1.5)), ImGui_NrmSizeGroup(cVector2f(0.75, 0.675)));
-                    StationGui_MainMenu();
-                    bBackButton = false;
-				break;
+				else
+				{
+					Sound_CreateAtEntity("freezer_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_negative", asEntityName, 0.0f, false, 1.0f); 
+				}
+					
+			}
 			
-                case eComputerTerminalApp_LiftLockdown:
-                    StationGui_TextReaderSingle("ComputerApp_Lobby_Security_Lockdown_Log_Title", "ComputerApp_Lobby_Security_Lockdown_Text");
-                    bBackButton = true;
+			if(ImGui_DoButton("button_3", "SC_button_3", ImGui_NrmPos(0.066, 0.3, 2), ImGui_NrmSize(0.33, 0.08f)))
+			{
+				Sound_CreateAtEntity("freezer_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_back", asEntityName, 0.0f, false, 1.0f); 	
+			}
+			
+			if(ImGui_DoButton("button_4", "SC_button_4", ImGui_NrmPos(0.066, 0.4, 2), ImGui_NrmSize(0.33, 0.08f)))
+			{
+				Sound_CreateAtEntity("freezer_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_back", asEntityName, 0.0f, false, 1.0f); 	
+			}
 
-					if(LampToggle == false)
-					{
-						LampToggle = true;	
-						Music_Play("01_02_enterfuseroom",0.5f, false, eMusicPrio_BigEvent);
-						SequenceMainReveal("");
-						
-					}
-						
-				break;
-		
-            }
-		
-            StationGui_BackButton(bBackButton);
+		ImGui_DoWindowEnd();
+			
+		ImGui_DoWindowStart("ComputerApp_Lobby_Security_Lockdown_Text", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.51, 0.66, 1)), ImGui_NrmSize(cVector2f(0.47, 0.32)));
+			
+			ImGui_DoTextFrameExt("status_light", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.075, 1), ImGui_NrmSizeGroup(1, 1));	
+			ImGui_DoTextFrameExt("status_tram", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.475, 1), ImGui_NrmSizeGroup(1, 1));
+			if(!LampToggle)
+			{
+				ImGui_DoTextFrameExt("status_locked", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.275, 1), ImGui_NrmSizeGroup(1, 1));
 
+			}
+			else
+			{
+				ImGui_DoTextFrameExt("status_unlocked", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame2, ImGui_NrmPosGroup(0, 0.275, 1), ImGui_NrmSizeGroup(1, 1));
+			}
+			ImGui_DoTextFrameExt("status_atmos", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0, 0.675, 1), ImGui_NrmSizeGroup(1, 1));
+			
+		ImGui_DoWindowEnd();
 	}
 	
 	 //} END Terminal *Name Of Terminal*

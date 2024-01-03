@@ -5,15 +5,36 @@
         <Directory Path="lang/eng" />
     </RESOURCES>
 	
+	<CATEGORY Name="Display">
+		<Entry Name="D_sched">SCHEDULE</Entry>
+		<Entry Name="D_info">INFO</Entry>
+		<Entry Name="D_entry1">TRACK 1: ERROR</Entry>
+		<Entry Name="D_entry2">TRACK 2: BLOCKED</Entry>
+		<Entry Name="D_error">ERROR</Entry>
+		
+		<Entry Name="D_status">STATUS</Entry>
+		<Entry Name="D_elev">ELEVATORS TO LOWER LEVELS</Entry>
+		<Entry Name="D_stair">STAIRWELL</Entry>
+	</CATEGORY>
+	
 	<CATEGORY Name="Security_Computer">
-		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Title">Remove Lockdown</Entry>
-		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Log_Title">Security Log</Entry>
-		
-		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Text">Date: 0-0-0000[br]    Lockdown lifted successfully.</Entry>
-		
-		<Entry Name="ComputerApp_RedArea_Security_Lore_Title">Emergency</Entry>
-		<Entry Name="ComputerApp_RedArea_Security_Lore_Text">Pathos-II - EMERGENCY![br] A biological threat has been received at Theta Laboratories. If you are near facility, prepare immediately for possible evacuation. Listen for instructions from officials or local authorities and follow them quickly and carefully. [br]For additional information and updates go to John Strohmeier.</Entry>
-		
+		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Title">COMMAND</Entry>
+		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Log_Title">CONTROL</Entry>
+		<Entry Name="ComputerApp_Lobby_Security_Lockdown_Text">STATUS</Entry>
+		<Entry Name="SC_button_1">LIGHTING</Entry>
+		<Entry Name="SC_button_2">OVERRIDE</Entry>
+		<Entry Name="SC_button_3">TRAM DATA</Entry>
+		<Entry Name="SC_button_4">ATMO RST</Entry>
+		<Entry Name="status_light">>LIGHT DISABLED</Entry>		
+		<Entry Name="status_tram">>TRAM ERROR</Entry>	
+		<Entry Name="status_atmos">>CLIMATE BAD</Entry>	
+		<Entry Name="status_locked">>EXIT LOCKED</Entry>	
+		<Entry Name="status_unlocked">>EXIT UNLOCKED</Entry>
+		<Entry Name="SC_power">POWER</Entry>
+		<Entry Name="SC_psi">PRESSURE</Entry>
+		<Entry Name="SC_p1">RELAY 1</Entry>
+		<Entry Name="SC_p2">RELAY 2</Entry>
+		<Entry Name="SC_p3">RELAY 3</Entry>
 	
 		<Entry Name="ComputerApp_Door_Control_Title">Door Control</Entry>
 		<Entry Name="ComputerApp_Door_Control_ADMIN">ADMIN</Entry>
@@ -24,14 +45,12 @@
 		
 		<Entry Name="DoorControlApp_Label">DOOR CONTROL</Entry>
 		<Entry Name="DoorControlApp_Label2">STATUS</Entry>
-		
 		<Entry Name="DC_button_1">MAIN.0</Entry>
 		<Entry Name="DC_button_2">LIVE.1</Entry>
 		<Entry Name="DC_button_3">NORTH.9</Entry>
 		<Entry Name="DC_button_4">SOUL.7</Entry>
 		<Entry Name="DC_button_5">FLEX.A</Entry>
 		<Entry Name="DC_button_6">FLEX.B</Entry>
-		
 		<Entry Name="DC_power">POWER:</Entry>
 		<Entry Name="DC_crit">CRITICAL</Entry>
 		<Entry Name="DC_text">INSUFFICENT POWER TO OPERATE MULTIPLE DOORS. ONLY ONE SECURITY DOOR CAN BE OPENED AT A TIME</Entry>
@@ -65,9 +84,10 @@
 		<Entry Name="LCA_18">Entrance</Entry>
 		<Entry Name="LCA_19">Internal Hallway</Entry>
 		
-	
-	
-	
+		<Entry Name="crawlspace_unsolved">crawlspace_unsolved</Entry>
+		<Entry Name="crawlspace_solved">crawlspace_solved</Entry>
+		<Entry Name="crawlspace_big_label">HATCH / AIRWAY CONTROL</Entry>
+		
 	</CATEGORY>
 	
 	<CATEGORY Name="Lobby_Computer">
