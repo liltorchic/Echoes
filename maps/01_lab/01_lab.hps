@@ -32,18 +32,30 @@
  
 /*Place any global values here. These must be const variables as they will not be saved*/
 /*This is also the place for enums and classes, but these should be avoided whenever possible*/
-bool bPressedFlashlight = false;
-bool bPickedUpIPAD = false;
-bool bInIPAD = false;
-bool mbUsingIpad = false;
-bool clicked = false;
-int LightPeekLength = 4.0f;
+
+//cave
+	bool bIsPlayerInCave = false;
+	
+//area 1
 
 //freezer
 	float aSinFeeder = 1.0f;
 	float aSinFeederSlow = 1.0f;
 	bool bFreezerTerminalBool = false;
 	bool btFreezerMain_working = false;
+	
+//office
+
+//area 2 
+	bool mbInTunnel_climb = false;	
+	bool mbInTunnel_shortcut = false;
+	bool bPressedFlashlight = false;
+	bool bPickedUpIPAD = false;
+	bool bInIPAD = false;
+	bool mbUsingIpad = false;
+	bool clicked = false;
+	int LightPeekLength = 4.0f;
+
 //--------------------------------------------------
  
 enum eComputerTerminalApp
@@ -70,7 +82,6 @@ enum eComputerTerminalApp
 class cScrMap : iScrMap
 {
 	bool DEVELOPERMODE = true;
-	
 	int dev_random = cMath_RandRectl(1000, 9999);
 	//--------------------------------------------
  
@@ -119,10 +130,6 @@ class cScrMap : iScrMap
 	float DrawDebugOutput(cGuiSet @apSet,iFontData @apFont,float afY)
 	{
 		afY = cLux_DrawDebugText("" + dev_random, afY);
-		afY = cLux_DrawDebugText("aSinFeeder: "+ aSinFeeder, afY);
-		afY = cLux_DrawDebugText("aSinFeederSlow: "+ aSinFeederSlow, afY);
-		afY = cLux_DrawDebugText("bFreezerTerminalBool: "+ bFreezerTerminalBool, afY);
-		afY = cLux_DrawDebugText("btFreezerMain_working: "+ btFreezerMain_working, afY);
 		return afY;
 	}
 	
@@ -335,6 +342,8 @@ class cScrMap : iScrMap
 		Map_AddTimer("timer_StartPerMapShake",10.0f,"timer_StartPerMapShake");
 	}
 	
+	
+	//periodic map shake
 	void timer_StartPerMapShake(const tString &in asTimer)
 	{
 		shakeMapPer();
@@ -342,15 +351,39 @@ class cScrMap : iScrMap
 	
 	void shakeMapPer()
 	{
-		cLux_AddDebugMessage("debug: periodic shake");
 		Map_AddTimer("timer_StartPerMapShake",cMath_RandRectf(45.0f,360.0f),"timer_StartPerMapShake");
-		Map_AddTimer("timer_shake_sfx",0.1f,"timer_shake_sfx");
+		if(mbInTunnel_climb || mbInTunnel_shortcut)
+		{
+			cLux_AddDebugMessage("debug: periodic shake in tunnel");
+			Map_AddTimer("timer_shake_sfx_hatch",0.1f,"timer_shake_sfx_hatch");
+		}
+		else if(bIsPlayerInCave)
+		{
+			cLux_AddDebugMessage("debug: periodic shake in cave");
+			Map_AddTimer("timer_shake_sfx_cave",0.1f,"timer_shake_sfx_cave");
+		}
+		else
+		{
+			cLux_AddDebugMessage("debug: periodic shake");
+			Map_AddTimer("timer_shake_sfx",0.1f,"timer_shake_sfx");
+		}
+		
 		Effect_Shake_Start(0.05, 0.05, 0.4, 2.5f);
 	}
 	
 	void timer_shake_sfx(const tString &in asTimer)
 	{
 		Sound_CreateAtEntity("sound_fx__periodic_map_shake", "level_amb_shared_interior/amb/sfx/metal/resonant_rattle", "player", 0.0f, false, 1.0f);
+	}
+	
+	void timer_shake_sfx_hatch(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_fx__periodic_map_shake", "level_amb_shared_interior/amb/sfx/detail/vent/creak", "player", 0.0f, false, 1.0f);
+	}
+	
+	void timer_shake_sfx_cave(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("sound_fx__periodic_map_shake", "level_amb_shared_interior/amb/sfx/dust_sprinkle_large_space", "player", 0.0f, false, 1.0f);
 	}
  
 
@@ -1042,6 +1075,8 @@ class cScrMap : iScrMap
 		Button_SetLocked("lab_3_*",true,true);
 		SlideDoor_SetClosed("lab_3",true,false);
 		Sound_CreateAtEntity("lab_3_door_malfunction", "02_05_theta/sweeteners/light_flicker_event/die", "lab_3", 0.0f, false, 1.0f);
+		Entity_SetColorMul("03_02_door_display_northhall_7", cColor(0.143, 0.0, 0.205, 1.0));
+		Entity_SetColorMul("03_02_door_display_laboratory_4",cColor(0.143, 0.0, 0.205, 1.0));
 	}
 
 	
@@ -1159,7 +1194,8 @@ class cScrMap : iScrMap
 	
 	void lab_2_2_OnPlayerInteract(const tString &in asEntity)
 	{
-		if(bScareDoorProxy == false){
+		if(bScareDoorProxy == false)
+		{
 			bScareDoorProxy = true;
 			Map_AddTimer("timer_bScareDoorProxy",0.76f,"timer_bScareDoorProxy");
 		}
@@ -1170,8 +1206,6 @@ class cScrMap : iScrMap
 		Entity_SetActive("Sound_4",true);
 		Sound_Play("Sound_4",0.0f,false);;
 	}
-	
-
 	
 	void timer_monsterScareSound(const tString &in asTimer)
 	{
@@ -1184,12 +1218,12 @@ class cScrMap : iScrMap
 		bScareDoorProxy = true;
 		Button_SetLocked("lab_2*",false,true);
 		SlideDoor_SetClosed("lab_2",false,false);
+		Entity_SetColorMul("plate_lab_2",cColor(0.021, 0.318, 0.203, 1.0));
 		
 		Pathfinder_Track_Start("puppet_1_1", true, 1.0f, "");
 		Entity_SetActive("puppet_1_1",true);
 		bIsEnemyActiveLab_1 = true;
 		bIsEnemySpawnedLab_1 = true;
-	
 	}
 	
 	bool TriggerArea_startAlarmSound(const tString &in asParent, const tString &in asChild, int alState)
@@ -1405,8 +1439,8 @@ class cScrMap : iScrMap
 			if(!hasUsedZoomArea_1)
 			{
 				Music_Play("02_01_reveal",0.75f, false, eMusicPrio_SceneAmb);
+				hasUsedZoomArea_1 = true;
 			}
-			hasUsedZoomArea_1 = true;
 		}
 	
 	bool bVisitedElevator = false;
@@ -1982,7 +2016,7 @@ class cScrMap : iScrMap
 		Button_SetLocked("officeshutter_1_panel",false,true);
 	}
 	
-	bool bIsPlayerInCave = false;
+
 	bool TriggerArea_cave(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1)//enter
@@ -2012,7 +2046,7 @@ class cScrMap : iScrMap
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//       HATCH AIRVENT LOGIC       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	bool mbInTunnel_climb = false;
+	
 	
 	//  bool omnitoolUpdated
 	
@@ -2035,6 +2069,7 @@ class cScrMap : iScrMap
 		Button_SetLocked("area4_security_door_1*",true,true);
 		SlideDoor_SetOpenableByAgent("area4_security_door_1",false);
 		SlideDoor_SetOpenableByAgent("area4_security_door_2",true);
+		SlideDoor_SetClosed("area4_security_door_1", true, false);
 		
 		Sound_CreateAtEntity("sfx_door_unlock", "Entities_Station/doors/theta_door/unlock", "area4_security_door_2", 0.0f, false, 3.0f);
 		Sound_CreateAtEntity("sfx_door_unlock", "Entities_Station/doors/upsilon/upsilon_button/upsilon_button_unlock", "area4_security_door_2_button_1", 0.0f, false, 3.0f);
@@ -2131,7 +2166,7 @@ class cScrMap : iScrMap
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//       HATCH SHORTCUT LOGIC       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	bool mbInTunnel_shortcut = false;
+
 	
 	bool dw_hatch_shortcut(const tString &in asParent, const tString &in asChild, int alState)
 	{
@@ -2510,6 +2545,11 @@ class cScrMap : iScrMap
 
 	}
 	
+	void turnOffguiLamps()
+	{
+		Entity_SetActive("guidoor_*",false);
+	}
+	
 	int index = -1;
 	tString tLabel = "";
 	
@@ -2537,8 +2577,8 @@ class cScrMap : iScrMap
 				SlideDoor_SetClosed("area4_bulkhead_*",true,false);
 				SlideDoor_SetClosed("area4_bulkhead_1",false,false);
 				
-				//Entity_SetActive("main0_lamp*",false);
-				Entity_SetActive("main0_lamp*",true);
+				turnOffguiLamps();
+				Entity_SetActive("guidoor_main0_lamp*",true);
 				
 			}
 			
@@ -2558,6 +2598,7 @@ class cScrMap : iScrMap
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
 				SlideDoor_SetClosed("area4_bulkhead_2",false,true);
 				
+				turnOffguiLamps();
 			}
 			
 		}
@@ -2575,6 +2616,8 @@ class cScrMap : iScrMap
 				tLabel = "DC_button_3";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
 				SlideDoor_SetClosed("area4_bulkhead_3",false,true);
+				
+				turnOffguiLamps();
 			}
 			
 		}
@@ -2592,6 +2635,8 @@ class cScrMap : iScrMap
 				tLabel = "DC_button_4";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
 				SlideDoor_SetClosed("area4_bulkhead_4",false,true);
+				
+				turnOffguiLamps();
 			}
 			
 		}
@@ -2609,6 +2654,8 @@ class cScrMap : iScrMap
 				tLabel = "DC_button_5";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
 				SlideDoor_SetClosed("area4_bulkhead_5",false,true);
+				
+				turnOffguiLamps();
 			}
 			
 		}
@@ -2626,6 +2673,8 @@ class cScrMap : iScrMap
 				tLabel = "DC_button_6";
 				SlideDoor_SetClosed("area4_bulkhead_*",true,true);
 				SlideDoor_SetClosed("area4_bulkhead_6",false,true);
+				
+				turnOffguiLamps();
 			}
 			
 		}
