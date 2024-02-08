@@ -84,9 +84,10 @@
 		<Entry Name="LCA_18">Entrance</Entry>
 		<Entry Name="LCA_19">Internal Hallway</Entry>
 		
-		<Entry Name="crawlspace_unsolved">crawlspace_unsolved</Entry>
-		<Entry Name="crawlspace_solved">crawlspace_solved</Entry>
+		<Entry Name="crawlspace_unsolved">RELAY DISCONNECTED</Entry>
+		<Entry Name="crawlspace_solved">RELAY BONDED</Entry>
 		<Entry Name="crawlspace_big_label">HATCH / AIRWAY CONTROL</Entry>
+		<Entry Name="crawlspace_small_label">HATCH CONTROL</Entry>
 		
 	</CATEGORY>
 	
