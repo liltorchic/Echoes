@@ -1,27 +1,41 @@
 <LANGUAGE>
-    <CATEGORY Name="Voices_lab">
-        <Entry Name="lab/powerup_where am i_001_protag_001">Hello? Where am I?</Entry>
-        <Entry Name="lab/powerup_where am i_002_friend_001">Hello? Wait, are you at station 3?</Entry>
-        <Entry Name="lab/powerup_where am i_003_protag_001">Um, I guess, are you here?</Entry>
-        <Entry Name="lab/powerup_where am i_004_friend_001">No, I&apos;m at relay 12. That sector is abandoned, how did you get there?</Entry>
-        <Entry Name="lab/powerup_where am i_005_protag_001">The train? Listen I just want to get out of here.</Entry>
-        <Entry Name="lab/powerup_where am i_006_friend_001">Well ok. Try the elevator down the hall. It should take you to the lower levels, you can leave from there.</Entry>
-        <Entry Name="lab/powerup_where am i_007_protag_001">Ok Thanks.</Entry>
-        <Entry Name="lab/last_action">[Someone is breathing in distress and alarms are going off]</Entry>
-        <Entry Name="lab/elevatorneedfix_elevatorbroken_001_protag_001">Hey uh, The elevators broken.</Entry>
-        <Entry Name="lab/elevatorneedfix_elevatorbroken_002_friend_001">Let me do a scan.</Entry>
-        <Entry Name="lab/elevatorneedfix_elevatorbroken_003_friend_001">Ok yea it says it needs a new chip on the button.</Entry>
-        <Entry Name="lab/elevatorneedfix_elevatorbroken_004_protag_001">Damn, Where&apos;s that.</Entry>
-        <Entry Name="lab/elevatorneedfix_elevatorbroken_005_friend_001">There&apos;s one in lab 2, You should check it out.</Entry>
-        <Entry Name="lab/lab2broken_lab2arrivebroken_001_protag_001">Damn it! This ones broken too!</Entry>
-        <Entry Name="lab/lab2broken_lab2arrivebroken_002_friend_001">Damn, Well I guess this place is abandoned for a reason.</Entry>
-        <Entry Name="lab/lab2broken_lab2arrivebroken_003_friend_001">Listen, there has to be a replacement in Lab 1.</Entry>
-        <Entry Name="lab/lab2broken_lab2arrivebroken_004_friend_001">You should head there...</Entry>
-        <Entry Name="lab/lab1diag_lab1redirect_001_friend_001">This is lab 1, You need to go to lab 2.</Entry>
-        <Entry Name="lab/lab2fix_lab2arrivefixed_001_protag_001">Ok. I got the replacement for the door to the lab.</Entry>
-        <Entry Name="lab/lab2fix_lab2arrivefixed_002_friend_001">Ok, Look for the chip for the elevator. Then you can get out of here.</Entry>
-        <Entry Name="lab/lab2fix_lab2arrivefixed_003_protag_001">Will do....</Entry>
-        <Entry Name="lab/needgoop_needchemical_001_protag_001">Hmm, Looks like I could free this chip if I had some kind of acid...</Entry>
-        <Entry Name="Datamine_datamine_001_character_001">*Datamine Text*</Entry>
+    <CATEGORY Name="Voice_Diag">
+        <Entry Name="start/intro_001_protag_001">ugh… </Entry>
+        <Entry Name="start/intro_002_protag_001">Wha... Where am I?</Entry>
+        <Entry Name="start/intro_003_protag_001">What happened here?</Entry>
+
+        <Entry Name="start/airlock_001_intercom_001">Hello? Is...</Entry>
+        <Entry Name="start/airlock_002_protag_001">Um.. Hello!!? Whats going on, where… where am I?</Entry>
+        <Entry Name="start/airlock_003_intercom_001">You're breaking up. You're stuck in a cycle… in omega?!. What are you doing there?</Entry>
+        <Entry Name="start/airlock_004_protag_001">I dont know, I cant remember</Entry>
+        <Entry Name="start/airlock_005_intercom_001">That place is scealed, it's not safe</Entry>
+        <Entry Name="start/airlock_006_protag_001">What.. What do I do?</Entry>
+        <Entry Name="start/airlock_007_intercom_001">You need to...</Entry>
+        <Entry Name="start/airlock_007_intercom_002">...ind a way down, to the service tunnels. Look out for...</Entry>
+        <Entry Name="start/airlock_008_protag_001">Shit</Entry>
+
+        <Entry Name="start/elev_001_protag_001">Shit, this security card is fried, I need a new one.</Entry>
+        <Entry Name="start/elev_001_protag_002">Wait... how did I know that?</Entry>
+
+        <Entry Name="start/chip_001_protag_001">Alright, the chip is in sector 2 high clearance.</Entry>
+
+        <Entry Name="start/decay_001_protag_001">Shit</Entry>
+        <Entry Name="start/decay_001_protag_002">This place is falling apart, there has to be another way in...</Entry>
+
+        <Entry Name="start/s1_001_protag_001">ok this is sector 1, maybe i find something useful, like...</Entry>
+        <Entry Name="start/s1_001_protag_002">an Omnitool.</Entry>
+
+        <Entry Name="start/freezer_001_protag_001">An Omnitool!, it's locked in this freezer..</Entry>
+
+        <Entry Name="start/freezer_002_protag_001">Ok, now I can find a way into Sector 2.</Entry>
+
+        <Entry Name="start/s2_001_protag_001">Sector 2! I need to find that cypher for the elevator</Entry>
+        
+        <Entry Name="start/s2noclearance_001_protag_001">I have to update the clearance on the Omnitool..</Entry>
+
+        <Entry Name="start/s2chipfound_001_protag_001">I can get out of here now</Entry>
+        <Entry Name="start/s2chipremind_001_protag_001">I have the security chip, I can use the elevator now</Entry>
+
+        <Entry Name="start/leave_001_protag_001">Here goes nothing</Entry>
     </CATEGORY>
 </LANGUAGE>
