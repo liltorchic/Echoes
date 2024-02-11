@@ -5,6 +5,10 @@
         <Directory Path="lang/eng" />
     </RESOURCES>
 	
+	<CATEGORY Name="hint">
+		<Entry Name="ipad">Press $Input{Flashlight} to bring up ipad</Entry>
+	</CATEGORY>
+	
 	<CATEGORY Name="Display">
 		<Entry Name="D_sched">SCHEDULE</Entry>
 		<Entry Name="D_info">INFO</Entry>
@@ -116,6 +120,24 @@
 		<Entry Name="working">WORKING</Entry>
 	</CATEGORY>	
 	
+	<CATEGORY Name="Terminal_med">
+		<Entry Name="medi_mediSTAT">mediSTAT</Entry>	
+		<Entry Name="medi_Messages">MAIL</Entry>	
+		<Entry Name="medi_settings">SETTINGS</Entry>
+		
+		<Entry Name="emailMedName">Something weird</Entry>	
+		<Entry Name="emailMed">I couldn't help but reach out to you about something that's been bothering me lately. Have you noticed anything strange going on in the lab? I can't quite put my finger on it, but things just don't seem right.[br][br]For starters, have you seen how the WAU has been acting up lately? It's like it has a mind of its own, running processes without any input from us. And did you hear about those rumors of unauthorized copies being made? It's pretty unsettling to think that our technology could be used without us knowing.[br][br]But that's not even the weirdest part. I swear, people have been acting so odd lately. It's like they're not themselves, you know? I've caught a few of my colleagues staring off into space with this distant look in their eyes, almost like they're not fully present. It's starting to freak me out a bit, to be honest.[br][br]I don't want to sound paranoid, but I can't shake the feeling that something sinister is going on behind the scenes. Do you think we should bring this up with management? Or would that just make us look like a couple of crazy conspiracy theorists?[br][br][br]Let me know your thoughts.</Entry>			
+		<Entry Name="emailMedSender">nicole@med.pathos.org</Entry>	
+		
+		<Entry Name="emailMedName1">RE: Something weird</Entry>	
+		<Entry Name="emailMed1">I'm glad to know I'm not the only one feeling uneasy about what's been happening in the lab lately. I've definitely noticed some of the things you mentioned, and I have to say, they're starting to creep me out too.[br][br]The WAU acting up is definitely concerning, especially considering how management is being all hush hush. And you're right about people acting strange. I've noticed it too—the vacant stares, the distant demeanor—it's like they're not fully there.[br][br]As for bringing it up with management, I'm not sure. On one hand, it might be worth raising our concerns if we think something shady is going on. But on the other hand, we don't have any concrete evidence, and we don't want to risk getting labeled as troublemakers.[br][br]Maybe we should start by talking to some of our other colleagues to see if they've noticed anything strange too. Strength in numbers, right? And if we do decide to approach management, we should make sure we have all our ducks in a row and present our concerns in a calm and rational manner.[br][br][br]Let's keep each other posted on any developments, and in the meantime, stay safe.</Entry>			
+		<Entry Name="emailMedSender1">sam@med.pathos.org</Entry>
+
+		<Entry Name="email_general_title">Important Message</Entry>	
+		<Entry Name="email_general_body">Hey team,[br][br]We've been noticing some really odd things happening in the lab lately, and we thought it was important to share our observations with everyone.[br]First off, there have been instances where the pilot equipment seems to be running autonomously, without any input from us. It's almost as if it's being controlled by something else entirely. We've double-checked our protocols and security measures, and everything seems to be in order on our end.[br][br]Secondly, we've heard whispers of unconfirmed rumors among employees. I would like to take this time to remind everyone that Pathos-II routinely works with confidential projects and violating confidentiality is reason for immediate termination.[br][br][br]Lastly, there's been a strange vibe around the labs lately. People have been acting a bit off, almost like they're not themselves.  We understand that the anniversary of the event is coming up soon, therefore we are extending all breaks by 15 minutes. </Entry>			
+		<Entry Name="email_general_sender">david@admin.pathos.org</Entry>			
+	</CATEGORY>	
+	
 	<CATEGORY Name="Terminal_Info">
 		<Entry Name="OUTSIDE">OUTSIDE</Entry>
 		<Entry Name="LOCKED">LOCKED</Entry>	
@@ -123,6 +145,12 @@
 		<Entry Name="TRAM_2">Tram 2</Entry>	
 		<Entry Name="ACTIVE">ACTIVE</Entry>	
 		<Entry Name="ELEVATOR">ELEVATOR</Entry>	
+	</CATEGORY>	
+	
+	<CATEGORY Name="Terminal_Mail_Shared">
+		<Entry Name="email_general_title">Important Message</Entry>	
+		<Entry Name="email_general_body">Hey team,[br][br]We've been noticing some really odd things happening in the lab lately, and we thought it was important to share our observations with everyone.[br]First off, there have been instances where the pilot equipment seems to be running autonomously, without any input from us. It's almost as if it's being controlled by something else entirely. We've double-checked our protocols and security measures, and everything seems to be in order on our end.[br][br]Secondly, we've heard whispers of unconfirmed rumors among employees. I would like to take this time to remind everyone that Pathos-II routinely works with confidential projects and violating confidentiality is reason for immediate termination.[br][br][br]Lastly, there's been a strange vibe around the labs lately. People have been acting a bit off, almost like they're not themselves.  We understand that the anniversary of the event is coming up soon, therefore we are extending all breaks by 15 minutes. </Entry>			
+		<Entry Name="email_general_sender">david@admin.pathos.org</Entry>	
 	</CATEGORY>	
 	
 	<CATEGORY Name="Terminal_PowerBox">

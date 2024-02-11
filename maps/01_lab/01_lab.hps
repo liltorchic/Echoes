@@ -75,7 +75,12 @@ enum eComputerTerminalApp
 	eComputerTerminalApp_Lobby_Confidential,
 	eComputerTerminalApp_Lobby_Emergency,
 	
-	eComputerTerminalApp_FreezerLoading,
+	eBunkerTerminalApp_Log,
+	eBunkerTerminalApp_MainMenu = -1,
+	eBunkerTerminalApp_Messages,
+	eBunkerTerminalApp_Map,
+	
+	eComputerTerminalApp_FreezerLoading,  
 	
 	eCTA_MainMenu = -1,
 	eCTA_Loading,
@@ -152,6 +157,12 @@ class cScrMap : iScrMap
 		setupLobbyRedLamps();
 		SetupMap();
 		bFreezerTerminalBool = false;
+		
+		//Sound_PreloadProject("02_04_theta_outside");
+		
+		/////////////////////////////////
+		// CathTool initial state
+		CathTool_ResetScreen(eCathToolVariant_HelperJane);
 	}
 	
 	int imagetraideID = 0;
@@ -159,6 +170,11 @@ class cScrMap : iScrMap
 	void OnStart()
 	{
 		cLux_AddDebugMessage("OnStart()");
+		
+		StationGui_PreloadDefault();
+		OmnitoolGui_Preload();
+		ImGui_PreloadImage("antennacontrol_power");
+		
 		Effect_Fade_Out(0);			
 		//cLux_AddDebugMessage("Begin in darkness..");
 		Player_SetJumpDisabled(true);
@@ -167,7 +183,7 @@ class cScrMap : iScrMap
 		Player_SetRunSpeedMul(1.0);
 		Player_SetFlashlightDisabled(true);
 		Sound_SetGlobalVolume(0.0f, eSoundEntryType_WorldAll);
-		imagetraideID = Effect_ImageTrail_Start(2.0f,0.0f, -1.0f, 0.0f);
+		imagetraideID = Effect_ImageTrail_Start(1.5, 0.2, 10, 2); 
 		PauseMenu_Enabled(false);
 		Player_ShowCrossHairIcons(false);
 		
@@ -2102,6 +2118,7 @@ class cScrMap : iScrMap
 		Lamp_SetLit("door_ind*",false,true);
 	}
 	
+	bool crawlspacePuzzleCompleted = false;
 	
 	//doorway
 	bool dw_hatch_airvent(const tString &in asParent, const tString &in asChild, int alState)
@@ -2172,6 +2189,18 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	bool cableInserted = false;
+	
+	bool StickyArea_1_Attach(const tString &in asStickyArea, const tString &in asBodyName)
+	{
+		cableInserted = true;
+		Entity_SetInteractionDisabled("power_cable_1",true);
+		Prop_SetStaticPhysics("power_cable_1",true);
+		Prop_StopMovement("power_cable_1");
+		Entity_Sleep("power_cable_1");
+		return true;
+	}
+	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//       HATCH SHORTCUT LOGIC       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2186,7 +2215,6 @@ class cScrMap : iScrMap
 			if(bExitedNearHatch)
 			{
 				iPlayerLocPrev = iPlayerLoc;
-				
 			}
 			
 			iPlayerLoc = -10;//vent
@@ -2201,11 +2229,10 @@ class cScrMap : iScrMap
 			{
 				iPlayerLoc = iPlayerLocPrev;
 				
-			}else{
+			}else
+			{
 				iPlayerLoc = 9;
 			}
-			
-			
 		}
 		
 		Entity_SetActive("climbArea_hatch_airvent_*", !mbInTunnel_shortcut);
@@ -2710,6 +2737,15 @@ class cScrMap : iScrMap
 		Player_SetFlashlightDisabled(true);
 	}
 	
+	bool TriggerArea_ipadhint(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		if(bPickedUpIPAD)
+		{
+			Hint_ShowHint("hint","ipad",true,2.5,true);
+		}
+		return !bPickedUpIPAD;
+	}
+	
 	void ipad_OnGui(const tString&in asEntityName, float afTimeStep) /////////////////////////////////////////////////////////////////////// IPAD                        IPAD
 	{
 		if(!bPickedUpIPAD)
@@ -3140,7 +3176,10 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
-	bool crawlspacePuzzleCompleted = false;
+	//bool crawlspacePuzzleCompleted = false;
+	// cableInserted
+	
+	
 	void crawlspace_small_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
 			ImGui_SetTransCategory("Security_Computer");
@@ -3168,22 +3207,51 @@ class cScrMap : iScrMap
 			{
 				textFrame.mColorText = greenCol;
 				
-				ImGui_DoTextFrameExt("crawlspace_solved", ImGui_NrmSizeGroup(0., 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.9, 0.015, 1), ImGui_NrmSizeGroup(1, .3));
+				ImGui_DoTextFrameExt("crawlspace_solved", ImGui_NrmSizeGroup(0., 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.075, 0.015, 1), ImGui_NrmSizeGroup(1, .3));
 				ImGui_DoImage(cImGuiGfx("connected.tga"), ImGui_NrmPos(cVector3f(.1, .35, 2)), ImGui_NrmSize(cVector2f(.75, .5)));
 			}
 
 			ImGui_DoWindowEnd();
 	}
 	
+	bool crawlspace_big_OnGui_first = false;
+	
 	void crawlspace_big_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
 			ImGui_SetTransCategory("Security_Computer");
-	
+			ImGui_SetModUseInput(cableInserted);
 			StationGuiBG_Scanlines();
 			StationGuiBG_Backdrop();
 			
-			ImGui_DoWindowStart("crawlspace_big_label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.96, 0.96)));
-			ImGui_DoWindowEnd();
+			cImGuiButtonData buttonData = StationGui_CreateToggleButtonData();
+			ImGui_SetDefaultButton(buttonData);
+			buttonData.mbUseFrame = false;
+			buttonData.mbUseBackgroundGfx = true;
+		
+	ImGui_DoWindowStart("crawlspace_big_label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.96, 0.96)));
+					///////////////////
+		// POWER BUTTON
+			//ImGui_SetModUseInput(cableInserted && !crawlspace_big_OnGui_first);
+			ImGui_SetModUseInput(cableInserted);
+			buttonData.mColorBase = gStationGuiColor_Warning;
+			buttonData.mColorTriggered = gStationGuiColor_Highlight;
+			buttonData.mGfxBackground = cImGuiGfx("antennacontrol_power");
+			if (ImGui_DoToggleButtonExt("button_power", "", false, buttonData, ImGui_NrmPosGroup(cVector3f(0.60, 0.2, 1)), ImGui_NrmSizeGroupKeepRatio(cVector2f(0.4, 0.4)))&& !crawlspace_big_OnGui_first)
+			{
+					ImGui_SetModUseInput(crawlspacePuzzleCompleted);
+					crawlspace_big_OnGui_first = true;
+					crawlspacePuzzleCompleted = true;
+					Sound_CreateAtEntity("hatch_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_back", asEntityName, 0.0f, false, 1.0f); 
+					Terminal_SetAllowInteraction(asEntityName, false);
+					Terminal_SetShowMouse(asEntityName, false);
+					Player_ExitTerminal();
+					Entity_SetActive("climbArea_hatch_shortcut_hallway",true);
+					Button_SetLocked("hatch_hallway_button_2",false,true);
+					
+			}
+			ImGui_SetModUseInput(true);
+
+	ImGui_DoWindowEnd();
 	}
 
 
@@ -3323,8 +3391,34 @@ class cScrMap : iScrMap
 	
 		void medroom_onGui(const tString&in asEntityName, float afTimeStep)
 		{
-			ImGui_SetTransCategory("Terminal_Chiproom");
+			ImGui_SetTransCategory("Terminal_med");
 			StationGuiBG_Scanlines();
+			StationGuiBG_Taskbar("upsilon");
+			
+			int lActiveApp = StationGui_GetActiveApp(eBunkerTerminalApp_MainMenu);
+			bool bBackButton = true;
+			switch(lActiveApp)
+			{
+				case eBunkerTerminalApp_MainMenu:
+				StationGui_AddApp("medi_mediSTAT", false, true);
+				StationGui_AddApp("medi_Messages", true, eBunkerTerminalApp_Messages);
+				StationGui_AddApp("medi_settings",false, true);
+				StationGui_MainMenu();
+				bBackButton = false;
+				break;
+				
+				
+				case eBunkerTerminalApp_Messages:
+				Depth_ImGui_AddMail("emailMedName", "emailMed", "emailMedSender", "emailMedSender", eMailAppEntryType_Inbox);
+				Depth_ImGui_AddMail("email_general_title", "email_general_body", "email_general_sender", "email_general_sender", eMailAppEntryType_Inbox);
+				Depth_ImGui_AddMail("emailMedName1", "emailMed1", "emailMedSender1", "emailMedSender1", eMailAppEntryType_Sent);
+				StationGui_MailApp("SendMail_mediroom");
+				break;
+				
+				
+			}
+		
+			StationGui_BackButton(bBackButton);
 		}
 	
 
@@ -3829,7 +3923,7 @@ class cScrMap : iScrMap
 					cLux_AddDebugMessage("Fade in");
 					Sound_FadeGlobalVolume(1.0f, 8.0f, eSoundEntryType_WorldAll);
 					Sound_FadeGlobalVolume(1.0f, 8.0f, eSoundEntryType_GuiWorld);
-					Effect_ImageTrail_FadeOut(imagetraideID, 25.0f);
+					
 					Effect_Fade_In(8.0f);
 					Sound_CreateAtEntity("WakeUp","00_05_apartment2/SFX/bed_awaken","Player",0,false);
 					CameraAnimation_Begin("AbyssWakeUpAnim", "", true);
@@ -3840,6 +3934,7 @@ class cScrMap : iScrMap
 				{
 					Player_SetLookSpeedMul(0.65f);
 					Player_SetMoveSpeedMul(1);
+					Effect_ImageTrail_FadeOut(imagetraideID, 25.0f);
 					Entity_SetActive("tram_hissd",true);
 					Sound_Play("tram_hissd",0.0f,false);
 				}
@@ -3970,3 +4065,18 @@ class cScrMap : iScrMap
 		}
 	
 }
+
+
+/*
+ * 
+ * 
+ * 
+ * 
+ * case eBunkerTerminalApp_Messages:
+			Depth_ImGui_AddMail("BunkerDraftName", "BunkerDraft", "", "", eMailAppEntryType_Draft);
+			StationGui_MailApp("SendMail_BunkerDraft");
+			 * 
+			 * 
+			 * 
+			 * 
+			 * /
