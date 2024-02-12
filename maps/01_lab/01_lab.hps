@@ -66,16 +66,16 @@
  
 enum eComputerTerminalApp
 {
-	eComputerTerminalApp_MainMenu = -1,
-	eComputerTerminalApp_MainMenu_LobbyComputer = -1,
-	eComputerTerminalApp_LiftLockdown,
-	eComputerTerminalApp_SecurityLog,
+	//eComputerTerminalApp_MainMenu = -1,
+	//eComputerTerminalApp_MainMenu_LobbyComputer = -1,
+	//eComputerTerminalApp_LiftLockdown,
+	//eComputerTerminalApp_SecurityLog,
 	
-	eComputerTerminalApp_Lobby_Power,
-	eComputerTerminalApp_Lobby_Confidential,
-	eComputerTerminalApp_Lobby_Emergency,
+	//eComputerTerminalApp_Lobby_Power,
+	//eComputerTerminalApp_Lobby_Confidential,
+	//eComputerTerminalApp_Lobby_Emergency,
 	
-	eBunkerTerminalApp_Log,
+	//eBunkerTerminalApp_Log,
 	eBunkerTerminalApp_MainMenu = -1,
 	eBunkerTerminalApp_Messages,
 	eBunkerTerminalApp_Map,
@@ -1462,7 +1462,7 @@ class cScrMap : iScrMap
 		{
 			if(!hasUsedZoomArea_1)
 			{
-				Music_Play("02_01_reveal",0.75f, false, eMusicPrio_SceneAmb);
+				Music_Play("02_01_reveal",1f, false, eMusicPrio_SceneAmb);
 				hasUsedZoomArea_1 = true;
 			}
 		}
@@ -1628,6 +1628,8 @@ class cScrMap : iScrMap
 			Lamp_SetLit("cargo_roomlight_red_*", false, true);
 			Lamp_SetLit("fluorescent_wall_mainBreaker", false, true);
 			Lamp_SetLit("monitor_theta_1", false, true);
+			Entity_SetActive("monitor_theta_1",false);
+			Entity_SetActive("monitor_theta_resetRoom",true);
 			//Entity_SetEffectBaseColor("current_transformer_collapse_*", cVector3f(0, 0, 0));
 			Sound_Stop("Sound_main_breaker",0.1f);
 			Effect_Fade_Out(0);// black out
@@ -1862,6 +1864,7 @@ class cScrMap : iScrMap
 			Lamp_SetLit("wall_long_skinny_white_6", true, true);
 			Lamp_SetLit("hallway_lamps_ceiling_*", true, true);
 			Lamp_SetLit("elevator_room_lamp_*", true, true);
+			Terminal_SetGuiActive("monitor_theta_resetRoom",true,4.0f);
 		}
 		
 		void TriggerArea_cave_look_OnPlayerLookAt(const tString &in asEntity, int alState)
@@ -3893,6 +3896,50 @@ class cScrMap : iScrMap
 		ImGui_DoWindowEnd();
 	}
 	
+	void monitor_theta_resetRoom_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+			ImGui_SetTransCategory("Terminal_ResetRoom");
+			StationGuiBG_Scanlines();
+
+			if (ImGui_GetStateBool("Unlocked",false) == false)
+			{		
+					if (StationGui_LoadingWindow("ComputerApp_Freezer_Title", "ComputerApp_Freezer_Dialog_Title", "ComputerApp_Freezer_Dialog_Text", 10.0f, false, cVector2f(0.75, 0.25), 1.5f))
+					{
+						StationGuiBG_Backdrop("background/background_logo_pathosstation", cVector2f(0.05, 0.05), 0.75);
+						StationGuiBG_Taskbar("upsilon");
+						ImGui_SetStateBool("Unlocked", true);
+					}
+			return;
+			}
+			
+		
+			
+			int lActiveApp = StationGui_GetActiveApp(eBunkerTerminalApp_MainMenu);
+			bool bBackButton = true;
+			switch(lActiveApp)
+			{
+				case eBunkerTerminalApp_MainMenu:
+				StationGui_AddApp("reset_1", false, true);
+				StationGui_AddApp("reset_Messages", true, eBunkerTerminalApp_Messages);
+				StationGui_AddApp("reset_2",false, true);
+				StationGui_MainMenu();
+				bBackButton = false;
+				break;
+				
+				
+				case eBunkerTerminalApp_Messages:
+				Depth_ImGui_AddMail("emailMedName", "emailMed", "emailMedSender", "emailMedSender", eMailAppEntryType_Inbox);
+				Depth_ImGui_AddMail("email_general_title", "email_general_body", "email_general_sender", "email_general_sender", eMailAppEntryType_Inbox);
+				Depth_ImGui_AddMail("emailMedName1", "emailMed1", "emailMedSender1", "emailMedSender1", eMailAppEntryType_Sent);
+				StationGui_MailApp("SendMail_mediroom");
+				break;
+				
+				
+			}
+		
+			StationGui_BackButton(bBackButton);
+	}
+	
 	 //} END Terminal *Name Of Terminal*
 	 //} END TERMINALS
 	 
@@ -4000,10 +4047,9 @@ class cScrMap : iScrMap
 
 		bool Trigger_seal_open_lab1(const tString &in asParent, const tString &in asChild, int alState)
 		{
-
 				testtriggger = true;
 				SlideDoor_SetClosed("Seal_lab_1_door",false,false);
-			return true;
+				return true;
 		}
 		
 		bool CC_needacid_diag(const tString &in asParent, const tString &in asChild, int alState)
@@ -4065,18 +4111,3 @@ class cScrMap : iScrMap
 		}
 	
 }
-
-
-/*
- * 
- * 
- * 
- * 
- * case eBunkerTerminalApp_Messages:
-			Depth_ImGui_AddMail("BunkerDraftName", "BunkerDraft", "", "", eMailAppEntryType_Draft);
-			StationGui_MailApp("SendMail_BunkerDraft");
-			 * 
-			 * 
-			 * 
-			 * 
-			 * /
