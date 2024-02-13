@@ -107,14 +107,7 @@ class cScrMap : iScrMap
 	// To get when player makes input (mostly used for debug)
 	void OnAction(int alAction, bool abPressed) 
 	{
-		if(alAction == eAction_Test1 && abPressed)
-		{
-			restorePower();
-		}
-		if(alAction == eAction_Test2 && abPressed)
-		{
-			PreloadMap();
-		}
+
 		
 		if(alAction == eAction_Flashlight && bPickedUpIPAD)
 		{
@@ -173,6 +166,7 @@ class cScrMap : iScrMap
 		
 		StationGui_PreloadDefault();
 		OmnitoolGui_Preload();
+		
 		ImGui_PreloadImage("antennacontrol_power");
 		
 		Effect_Fade_Out(0);			
@@ -457,7 +451,7 @@ class cScrMap : iScrMap
 		for(int c = 1; c <= 12; c++)
 		{
 			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_Cargo_robot_" + c, 0.0f, 0.5f, "", false);
-			cLux_AddDebugMessage("PathNode_Cargo_robot_" + c);
+			//cLux_AddDebugMessage("PathNode_Cargo_robot_" + c);
 		}
 		AddMonstersToWorld();
 	}
@@ -1462,12 +1456,13 @@ class cScrMap : iScrMap
 		{
 			if(!hasUsedZoomArea_1)
 			{
-				Music_Play("02_01_reveal",1f, false, eMusicPrio_SceneAmb);
+				Music_Play("02_01_reveal",1.0f, false, eMusicPrio_SceneAmb);
 				hasUsedZoomArea_1 = true;
 			}
 		}
 	
 	bool bVisitedElevator = false;
+	
 	bool CC_ElevatorDiag_trig(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		SlideDoor_SetOpenAmount("cargobay_door_1",0.45f,true);
@@ -1477,6 +1472,7 @@ class cScrMap : iScrMap
 		bVisitedElevator = true;
 		return false;
 	}
+
 		
 	bool TriggerArea_elevator_lockin(const tString &in asParent, const tString &in asChild, int alState)
 	{
