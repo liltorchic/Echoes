@@ -61,6 +61,8 @@
 	int iPlayerLocVentPrev = -2;
 	bool bExitedNearHatch = false;
 	bool b6to8 = false;
+	
+	int choice = -1;
 
 //--------------------------------------------------
  
@@ -2197,7 +2199,13 @@ class cScrMap : iScrMap
 		Prop_SetStaticPhysics("power_cable_1",true);
 		Prop_StopMovement("power_cable_1");
 		Entity_Sleep("power_cable_1");
+		Map_AddTimer("TimerPlayBeep", 0.75, "TimerPlayBeep"); 
 		return true;
+	}
+	
+	void TimerPlayBeep(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("hatch_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_back", "crawlspace_big", 0.0f, false, 1.0f); 
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2982,23 +2990,15 @@ class cScrMap : iScrMap
 						bBackButton = false;
 					break;
 				
-				
 					//door control
 					case eCTA_Control:
 						DoDoorControl(asEntityName);
 						bBackButton = true;
 					break;
-					
-
-
 				}
 		
 				StationGui_BackButton(bBackButton);
 			}
-			
-			
-
-
 	}
 	
 	void turnOffguiLamps()
@@ -3215,27 +3215,141 @@ class cScrMap : iScrMap
 	
 	bool crawlspace_big_OnGui_first = false;
 	
+	bool showStatic = false;
+	bool showStatic2 = false;
+
+
+	
 	void crawlspace_big_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
+		if(ImGui_IsFirstRun())
+		{
+			ImGui_AddTimer("beginTimer",cMath_RandRectf(1, 1));
+		}
+		
+		
+		
+		if(ImGui_TimerOver("beginTimer"))
+		{
+			showStatic = true;
+			ImGui_AddTimer("staticTimer",cMath_RandRectf(0.05f, 0.2f));//on time
+		}
+		
+		if(ImGui_TimerOver("staticTimer"))
+		{
+			
+			ImGui_AddTimer("beginTimer",cMath_RandRectl(6,20));//off time
+			showStatic = false;
+		}
+		
+		if (showStatic)
+		{		
+			if(showStatic2)
+			{
+				choice = cMath_RandRectl(1,20);
+			}
+				switch(choice)
+				{
+				case 1:
+					ImGui_DoImage(cImGuiGfx("death_image_16",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));
+					Sound_CreateAtEntity("sfx_terminal_welcome", "03_02_omicron_inside/SFX/suit_diagnostics/suit_error_found", asEntityName, 0.0f, false, 1.0f); 
+					break;
+				case 2:
+					ImGui_DoImage(cImGuiGfx("death_image_20",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));
+					Sound_CreateAtEntity("sfx_terminal_welcome", "02_05_theta/amb/spots/tiny_spark", asEntityName, 0.0f, false, 1.0f);
+					break;
+				case 3:
+					ImGui_DoImage(cImGuiGfx("death_image_alt_16",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 4:
+					ImGui_DoImage(cImGuiGfx("death_image_25",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 5:
+					ImGui_DoImage(cImGuiGfx("leechgibberish_0"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 6:
+					ImGui_DoImage(cImGuiGfx("leechgibberish_1"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 7:
+					ImGui_DoImage(cImGuiGfx("leechgibberish_2"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 8:
+					ImGui_DoImage(cImGuiGfx("leechgibberish_3"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 9:
+					ImGui_DoImage(cImGuiGfx("leechgibberish_4"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				case 10:
+					ImGui_DoImage(cImGuiGfx("leechgibberish_5"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+				default:
+					ImGui_DoImage(cImGuiGfx("static_1"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(2, 2)));
+					Sound_CreateAtEntity("sfx_terminal_welcome", "Entities_Station/object/upsilon_transformer/spark", asEntityName, 0.0f, false, 0.3f);
+					break;
+					
+				}
+				
+				
+				showStatic2 = false;
+		}
+		else
+		{
+			showStatic2 = true;
+		
 			ImGui_SetTransCategory("Security_Computer");
+			
 			ImGui_SetModUseInput(cableInserted);
 			StationGuiBG_Scanlines();
 			StationGuiBG_Backdrop();
 			
 			cImGuiButtonData buttonData = StationGui_CreateToggleButtonData();
+			cImGuiButtonData buttonData2 = StationGui_CreateToggleButtonData();
 			ImGui_SetDefaultButton(buttonData);
 			buttonData.mbUseFrame = false;
 			buttonData.mbUseBackgroundGfx = true;
+			buttonData2.mColorDisabled = cColor(0.15f, 0.2f, 0.2f, 1.0f);
+			buttonData2.mbUseDisabledColor = true;
+			
+			cImGuiTextFrameData textFrame = ImGui_GetDefaultTextFrame();
+			textFrame.mbUseBackgroundGfx = false;
+			textFrame.mFont.SetFile(Helper_Font_GetFontName(eLuxFontType_Sansation_Large));
+			textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.05);
+			textFrame.mColorText = gStationGuiColor_Normal;
 		
-	ImGui_DoWindowStart("crawlspace_big_label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.96, 0.96)));
-					///////////////////
+	ImGui_DoWindowStart("crawlspace_big_label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.60, 0.96)));
+	
+
+		ImGui_SetTransCategory("");
+			for(int a = 1; a < 6; a++)
+			{	
+				for(int b = 1; b < 3; b++)
+				{	
+					giberish = cMath_RandRectl(1, 999999);
+					if(giberish < 10000 || giberish > 99999)
+					{
+						gib = "ERROR";
+					}else if(giberish > 30000 && giberish < 60000)
+					{
+						gib = "HELP";
+					}
+					else
+					{
+						gib = "" + giberish;
+					}
+					
+					ImGui_DoTextFrameExt(gib, ImGui_NrmSizeGroup(0, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.2 + (b-1) * .4 , 0.1 * a, 1), ImGui_NrmSizeGroup(1, 1));
+				}
+			}	
+		ImGui_SetTransCategory("Security_Computer");
+		
+		ImGui_SetModUseInput(false);
+		ImGui_DoButtonExt("button_2", "SC_button_2", buttonData2, ImGui_NrmPos(0.125, 0.6, 2), ImGui_NrmSize(0.33, 0.08f));
+		ImGui_DoButtonExt("button_2", "ComputerApp_Door_Control_ADMIN", buttonData2, ImGui_NrmPos(0.125, 0.7, 2), ImGui_NrmSize(0.33, 0.08f));
+		ImGui_DoButtonExt("button_2", "SC_button_5", buttonData2, ImGui_NrmPos(0.125, 0.8, 2), ImGui_NrmSize(0.33, 0.08f));
+
+	ImGui_DoWindowEnd();
+	
+	ImGui_DoWindowStart("crawlspace_big_power", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.635, 0.02, 1)), ImGui_NrmSize(cVector2f(0.35, 0.45)));
+				///////////////////
 		// POWER BUTTON
 			//ImGui_SetModUseInput(cableInserted && !crawlspace_big_OnGui_first);
 			ImGui_SetModUseInput(cableInserted);
 			buttonData.mColorBase = gStationGuiColor_Warning;
 			buttonData.mColorTriggered = gStationGuiColor_Highlight;
 			buttonData.mGfxBackground = cImGuiGfx("antennacontrol_power");
-			if (ImGui_DoToggleButtonExt("button_power", "", false, buttonData, ImGui_NrmPosGroup(cVector3f(0.60, 0.2, 1)), ImGui_NrmSizeGroupKeepRatio(cVector2f(0.4, 0.4)))&& !crawlspace_big_OnGui_first)
+			if (ImGui_DoToggleButtonExt("button_power", "", false, buttonData, ImGui_NrmPosGroup(cVector3f(0.05, 0.025, 1)), ImGui_NrmSizeGroupKeepRatio(cVector2f(0.95, 0.95))) && !crawlspace_big_OnGui_first)
 			{
 					ImGui_SetModUseInput(crawlspacePuzzleCompleted);
 					crawlspace_big_OnGui_first = true;
@@ -3249,8 +3363,31 @@ class cScrMap : iScrMap
 					
 			}
 			ImGui_SetModUseInput(true);
-
+	
 	ImGui_DoWindowEnd();
+	
+	ImGui_DoWindowStart("crawlspace_big_status", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.635, 0.5, 1)), ImGui_NrmSize(cVector2f(0.35, 0.475)));
+		textFrame.mFont.mvSize = ImGui_NrmSizeKeepRatio(0.025);
+		ImGui_DoImage(cImGuiGfx("plug.tga"), ImGui_NrmPos(cVector3f(0.02, .05, 2)), ImGui_NrmSize(cVector2f(.05, .1)));
+		if(!cableInserted)
+		{
+			ImGui_DoImage(cImGuiGfx("disconect.tga"), ImGui_NrmPos(cVector3f(0.1, .06, 2)), ImGui_NrmSize(cVector2f(.15, .09)));
+		}else
+		{
+			ImGui_DoImage(cImGuiGfx("flow.tga"), ImGui_NrmPos(cVector3f(0.1, .095, 2)), ImGui_NrmSize(cVector2f(.15, .02)));
+		}
+		
+		ImGui_DoImage(cImGuiGfx("power.tga"), ImGui_NrmPos(cVector3f(0.275, .05, 2)), ImGui_NrmSize(cVector2f(.1/1.8, .2/1.8)));
+		ImGui_DoTextFrameExt("conduit1", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.325, 0.375, 1), ImGui_NrmSizeGroup(1, 1));	
+		
+		
+		ImGui_DoImage(cImGuiGfx("plug.tga"), ImGui_NrmPos(cVector3f(0.02, .25, 2)), ImGui_NrmSize(cVector2f(.05, .1)));
+		ImGui_DoImage(cImGuiGfx("flow.tga"), ImGui_NrmPos(cVector3f(0.1, .30, 2)), ImGui_NrmSize(cVector2f(.15, .02)));
+		ImGui_DoImage(cImGuiGfx("power.tga"), ImGui_NrmPos(cVector3f(0.275, .25, 2)), ImGui_NrmSize(cVector2f(.1/1.8, .2/1.8)));
+		ImGui_DoTextFrameExt("conduit2", ImGui_NrmSizeGroup(0.05, 0), 0, 0, textFrame, ImGui_NrmPosGroup(0.325, 0.875, 1), ImGui_NrmSizeGroup(1, 1));	
+	ImGui_DoWindowEnd();
+		}
+		
 	}
 
 

@@ -29,6 +29,7 @@
 		<Entry Name="SC_button_2">OVERRIDE</Entry>
 		<Entry Name="SC_button_3">TRAM DATA</Entry>
 		<Entry Name="SC_button_4">ATMO RST</Entry>
+		<Entry Name="SC_button_5">CONFIG</Entry>
 		<Entry Name="status_light">>LIGHT DISABLED</Entry>		
 		<Entry Name="status_tram">>TRAM ERROR</Entry>	
 		<Entry Name="status_atmos">>CLIMATE BAD</Entry>	
@@ -91,7 +92,11 @@
 		<Entry Name="crawlspace_unsolved">RELAY DISCONNECTED</Entry>
 		<Entry Name="crawlspace_solved">RELAY BONDED</Entry>
 		<Entry Name="crawlspace_big_label">HATCH / AIRWAY CONTROL</Entry>
+		<Entry Name="crawlspace_big_power">POWER</Entry>
+		<Entry Name="crawlspace_big_status">CONDUIT</Entry>
 		<Entry Name="crawlspace_small_label">HATCH CONTROL</Entry>
+		<Entry Name="conduit1">CONDUIT A</Entry>
+		<Entry Name="conduit2">CONDUIT B</Entry>
 		
 	</CATEGORY>
 	
