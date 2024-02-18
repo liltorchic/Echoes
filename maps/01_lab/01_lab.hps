@@ -39,7 +39,7 @@
 //area 1
 
 //freezer
-	float aSinFeeder = 1.0f;
+	float aFreezerGUISinFeeder = 1.0f;
 	float aSinFeederSlow = 1.0f;
 	bool bFreezerTerminalBool = false;
 	bool btFreezerMain_working = false;
@@ -47,6 +47,8 @@
 //office
 
 //area 2 
+
+
 	bool mbInTunnel_climb = false;	
 	bool mbInTunnel_shortcut = false;
 	bool bPressedFlashlight = false;
@@ -54,7 +56,7 @@
 	bool bInIPAD = false;
 	bool mbUsingIpad = false;
 	bool clicked = false;
-	int LightPeekLength = 4.0f;
+	int LightPeekLength = 8.0f;
 	
 	int iPlayerLoc = -1;
 	int iPlayerLocPrev = -2;
@@ -63,6 +65,12 @@
 	bool b6to8 = false;
 	
 	int choice = -1;
+	
+	bool bSecurityInsertedCTA = false;
+	bool elevatorChipUpdateInserted = false;
+	bool elevatorChipUpdateInsertedFinally = false;
+	bool hasChipBeenUpdated = false;
+	bool bLightswitchActive = false;
 
 //--------------------------------------------------
  
@@ -88,6 +96,7 @@ enum eComputerTerminalApp
 	eCTA_Loading,
 	eCTA_Control,
 	eCTA_Splash,
+	eCTA_Omni,
 }
 
 
@@ -231,7 +240,7 @@ class cScrMap : iScrMap
  	void PreloadMap()
 	{
 		cLux_AddDebugMessage("PreloadMap()");
-		Map_SetPreloadPriority(eWorldStreamPriority_Low);//
+		Map_SetPreloadPriority(eWorldStreamPriority_Low);
 		Map_Preload("02_under.hpm");
 	}
 	
@@ -409,17 +418,10 @@ class cScrMap : iScrMap
 
 	void SetupLockedDoorStates()
 	{
-		SlideDoor_SetOpenableByAgent("LabDoor_1", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_2", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_3", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_4", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_5", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_6", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_7", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_7", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_8", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_9", false);
-		SlideDoor_SetOpenableByAgent("LabDoor_10", false);
+		for(int a = 1; a <= 10; a++)
+		{
+			SlideDoor_SetOpenableByAgent("LabDoor_" + a, false);
+		}
 	}
 	
 	void UpdateLockedDoorStates()
@@ -443,13 +445,6 @@ class cScrMap : iScrMap
 		{
 			Pathfinder_Track_Add("puppet_1_1", "PathNodeArea_" + a, 0.0f, 0.5f, "", false);
 		}
-		/*
-		for(int b = 1; b <= 460; b++)
-		{
-			Pathfinder_Track_Add("puppet_2_1", "PathNodeArea_Red_" + b, 0.0f, 0.5f, "", false);
-			Pathfinder_Track_Add("puppet_2_2", "PathNodeArea_Red_" + b, 0.0f, 0.5f, "", false);
-		}
-		*/
 		for(int c = 1; c <= 12; c++)
 		{
 			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_Cargo_robot_" + c, 0.0f, 0.5f, "", false);
@@ -797,6 +792,13 @@ class cScrMap : iScrMap
 		//Entity_SetActive("",false);
 	}
 	
+	bool EnterArea2(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		SlideDoor_SetClosed("airlock2_2",true,false);
+		Entity_SetActive("airlock2_blockbox_2",true);
+		return false;
+	}
+	
 	/////////////airlock end
 	
 	
@@ -1112,6 +1114,7 @@ class cScrMap : iScrMap
 	bool bOmnitool_hasChemStorageBeenOpened = false;
 	bool bOmnitool_hasOfficeOpened = false;
 	bool bOmnitool_haslab1Exit = false;
+	bool bOmnitool_haslab2Exit = false;
 	bool omni_inserted = false;
 	bool omnitoolUpdated = false;
 	
@@ -1121,7 +1124,7 @@ class cScrMap : iScrMap
 		if (asEntity == "omnitool_panel_office" && bOmnitool_hasOfficeOpened == false) return true;
 		if (asEntity == "omnitool_panel_lab1_exit" && bOmnitool_haslab1Exit == false) return true;
 		if (asEntity == "TriggerArea_omniInsert" && omni_inserted == false) return true;
-		if (asEntity == "omnitool_panel_darkExit" && omnitoolUpdated == true) return true;
+		if (asEntity == "omnitool_panel_darkExit" && hasChipBeenUpdated) return true;
 			
 		return false;
 	}	
@@ -1151,11 +1154,25 @@ class cScrMap : iScrMap
 			Lamp_SetLit("omnislot_inside_right_light_1",true,true);
 			Lamp_SetLit("omnislot_inside_left_light_1",false,true);
 			Lamp_SetFlickerActive("omnislot_inside_left_light_1", false);
+			Sound_CreateAtEntity("omni insert", "Entities_Station/object/cathtool/insert_cathtool_nonunderwater", "omnitool_1", 0.1f, false, 4.0f); //Entities_Station/object/cathtool/detach_cathtool_nonunderwater //Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_device_connect //Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_omnitool_configured
+			Map_AddTimer("timer_cathinsert",0.48f,"timer_cathinsert");
 			omni_inserted = true;
+		}
+		
+		if (asEntity == "omnitool_panel_darkExit" && hasChipBeenUpdated) 
+		{
+			bOmnitool_haslab2Exit = true;
+			CathTool_UseOnPanel("omnitool_1","omnitool_panel_darkExit");
 		}
 		
 		return false;		
 	}
+	
+	void timer_cathinsert(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("omni insert", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_device_connect", "computer_panel_door_control", 0.1f, false, 4.0f);
+	}
+
 	
 	void omnitool_panel_lab1_exit_OnConnectionStateChange(const tString &in asEntity, int alState)
 	{
@@ -1174,6 +1191,9 @@ class cScrMap : iScrMap
 	{
 		if(alState == 1)
 		{
+			SlideDoor_SetClosed("airlock2_2",false,false);
+			Entity_SetActive("airlock2_blockbox_2",false);
+			Entity_SetActive("OmnitoolArea_5", false);
 		}
 	}
 	
@@ -1939,29 +1959,63 @@ class cScrMap : iScrMap
 		hasElevatorBeenClosedFinally = true;
 	}
 	
+
 	
 	
 	bool elevator_Chip_CanBeUsed(const tString &in asTool, const tString &in asEntity)
 	{
-		if (asEntity == "elevator_area" && ElevatorChipHasBeenInserted == false) return true;
+		if (asEntity == "elevator_area" && !ElevatorChipHasBeenInserted) return true;
+		if (asEntity == "TriggerArea_chipinsert_dark" && !elevatorChipUpdateInserted) return true;
 		return false;
 	}
 
 	bool elevator_Chip_OnUse(const tString &in asTool, const tString &in asEntity)
 	{
-		if (asEntity == "elevator_area" && brokenChipHasBeenRemoved == true)
+		if (asEntity == "elevator_area" && brokenChipHasBeenRemoved)
 		{
 			ElevatorChipHasBeenInserted = true;
 			
 			Entity_SetActive("elevator_chip_world", true);
 			Prop_SetStaticPhysics("elevatorchip_broken",false);
 			Sound_CreateAtEntity("sound_elevator_button", "Entities_Station/object/server_dial/start", "theta_panel_elevator_1", 0.0f, false, 2.0f);
-			Player_RemoveTool("elevator_Chip"); //removes tool from inventory
+			Player_RemoveTool("elevator_Chip*"); //removes tool from inventory
 
+		}
+		
+		if (asEntity == "TriggerArea_chipinsert_dark" && !elevatorChipUpdateInserted)
+		{
+			elevatorChipUpdateInserted = true;
+			
+			Entity_SetActive("elevator_Chip_updated", true);
+			Entity_SetActive("TriggerArea_chipinsert_dark", false);
+			Sound_CreateAtEntity("elevator_Chip_updated", "01_01_upsilon_awake/sfx/omnitool/chip_pickup", asEntity, 0.0f, false, 1.0f);
+			Player_RemoveTool(asTool); //removes tool from inventory
+			Map_AddTimer("timer_slideelevatorchip",1.0f,"timer_slideelevatorchip");
 		}
 		
 		return false;		
 	}
+	
+	void timer_slideelevatorchip(const tString &in asTimer)
+	{
+		Prop_MoveLinearTo("elevator_Chip_updated","ec_target",0.1f,2.0f,0.01f,true,"OnEleChipInserted");
+		Sound_CreateAtEntity("elevator_Chip_updated", "01_01_upsilon_awake/sfx/omnitool/chip_insert", "elevator_Chip_updated", 0.0f, false, 1.0f);
+	}
+	
+	void OnEleChipInserted(const tString& in asPropName)
+	{
+		Sound_Stop("freezer_chip_moving",0.1f);
+		Sound_CreateAtEntity("elevator_Chip_insert", "Entities_Station/object/memchip/remove", "elevator_Chip_updated", 0.0f, false, 1.0f);
+		cLux_AddDebugMessage("elevator Chip Inserted!");
+		//Music_Play("NPC_flesher_notice3",0.6f, false, eMusicPrio_MinorEvent);
+		elevatorChipUpdateInsertedFinally = true;
+		bSecurityInsertedCTA = true;
+	}
+	
+	
+	
+	
+	
 	
 	//remove broken chip
 	void StickyArea_ElevatorChip_Detach(const tString &in asStickyArea, const tString &in asBodyName)
@@ -2296,6 +2350,33 @@ class cScrMap : iScrMap
 		}
 		return true;
 	}
+	 
+	void lightswitch_OnConnectionStateChange(const tString &in asEntity, int alState)
+	{
+		if(alState == 1)//on
+		{
+			Light_SetBrightness("PointLight_91", 51.0f);
+			Lamp_SetLit("ceiling_shutter_large_white_noshutter_7", true, true);
+			Map_AddTimer("TimerLightswitchflash", 0.33f, "TimerLightswitchflash");//TriggerArea_5
+			ParticleSystem_CreateAtEntity("elec_spark_medium_bright_fast_oneshot","elec_spark_medium_bright_fast_oneshot.ps","ParticleSystem_24",false);
+			ParticleSystem_CreateAtEntity("elecs","elec_spark_medium_bright_fast_oneshot.ps","TriggerArea_5",false);
+			Sound_CreateAtEntity("spark","01_02_upsilon_inside_02/sfx/flower_bulb_break",asEntity, 0.0f, false, 1.0f);
+			Button_SetDisabled("lightswitch",true,true);
+			bLightswitchActive = true;
+		}
+		else if(alState == -1)//off
+		{
+			Lamp_SetLit("ceiling_shutter_large_white_noshutter_7", false, true);
+		}
+	}
+	
+	void TimerLightswitchflash(const tString &in asTimer)
+	{
+		Light_SetBrightness("PointLight_91", 0.0f);
+	}
+	
+	
+	
 	
 	//////////////////////////////player detection
 	// i dont know why i did this with ints and not enums
@@ -2701,6 +2782,146 @@ class cScrMap : iScrMap
 		//PreloadMap();
 	}
 	
+	void elevator_Chip_updated_OnPlayerInteract(const tString &in asEntity)
+	{
+		hasChipBeenUpdated = true;
+		bSecurityInsertedCTA = false;
+		Entity_SetActive("ToolArea_6",false);
+		Sound_CreateAtEntity("sfx_chip_grab", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_device_disconnect", "computer_panel_door_control", 0.0f, false, 1.0f);
+	}
+	
+	///////////////////////
+	//ipad button callbacks
+	
+	bool map_element_1()
+	{
+		cLux_AddDebugMessage("map_element_1()");
+		return true;
+	}
+	
+	bool map_element_2()
+	{
+		cLux_AddDebugMessage("map_element_2()");
+		return true;
+	}
+	
+	bool map_element_3()
+	{
+		cLux_AddDebugMessage("map_element_3()");
+		return true;
+	}
+	
+	bool map_element_4()
+	{
+		cLux_AddDebugMessage("map_element_4()");
+		return true;
+	}
+	
+	bool map_element_5()
+	{
+		cLux_AddDebugMessage("map_element_5()");
+		return true;
+	}
+	
+	bool map_element_6()
+	{
+		cLux_AddDebugMessage("map_element_6()");
+		return true;
+	}
+	
+	bool map_element_7()
+	{
+		cLux_AddDebugMessage("map_element_7()");
+		return true;
+	}
+	
+	bool map_element_8()
+	{
+		cLux_AddDebugMessage("map_element_8()");
+		return true;
+	}
+	
+	bool map_element_9()
+	{
+		cLux_AddDebugMessage("map_element_9()");
+		return true;
+	}
+	
+	bool map_element_10()
+	{
+		cLux_AddDebugMessage("map_element_10()");
+		return true;
+	}
+	
+	bool map_element_11()//lightswitch room 
+	{
+		Button_SetLocked("area4_lab_door_button_*",false,true);
+		Map_AddTimer("Timer_map_element_11", LightPeekLength, "Timer_map_element_11");
+		Sound_CreateAtEntity("11_sfx","Entities_Station/doors/tau/buttons/unlock","area4_lab_door",0.0f, false, 1.0f);
+		cLux_AddDebugMessage("map_element_11()");
+		return true;
+	}
+	
+	void Timer_map_element_11(const tString &in asTimer)
+	{
+		Button_SetLocked("area4_lab_door_button_*",true,true);
+		SlideDoor_SetClosed("area4_lab_door",true,false);
+		Sound_CreateAtEntity("11_sfx","Entities_Station/doors/tau/buttons/locked","area4_lab_door",0.0f, false, 1.0f);
+	}
+	
+	bool map_element_12()
+	{
+		cLux_AddDebugMessage("map_element_12()");
+		return true;
+	}
+	
+	bool map_element_13()
+	{
+		cLux_AddDebugMessage("map_element_13()");
+		return true;
+	}
+	
+	bool map_element_14()
+	{
+		cLux_AddDebugMessage("map_element_14()");
+		return true;
+	}
+	
+	bool map_element_15()
+	{
+		cLux_AddDebugMessage("map_element_15()");
+		return true;
+	}
+	
+	bool map_element_16()
+	{
+		cLux_AddDebugMessage("map_element_16()");
+		return true;
+	}
+	
+	bool map_element_17()
+	{
+		cLux_AddDebugMessage("map_element_17()");
+		return true;
+	}
+	
+	bool map_element_18()
+	{
+		cLux_AddDebugMessage("map_element_18()");
+		return true;
+	}
+	
+	bool map_element_19()
+	{
+		cLux_AddDebugMessage("map_element_19()");
+		return true;
+	}
+
+
+	
+	
+	
+	
 
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2917,9 +3138,13 @@ class cScrMap : iScrMap
 			lock.mvButtons.push_back(asName);
 			lock.msCustomClickCallback = asName;
 			lock.mvNrmSize = cVector2f(1, 1);
+			
 			//lock.mvNrmPos = cVector3f(1, 1, 1);
 			return lock;
+			//lightOverrideTime
 		}
+		
+
 		
 	void ipad_GuiLeave(const tString&in asEntityName)
 	{
@@ -2974,6 +3199,7 @@ class cScrMap : iScrMap
 						StationGui_AddApp("ComputerApp_Door_Control_Title",omni_inserted,eCTA_Loading);
 						StationGui_AddApp("ComputerApp_Door_Control_ADMIN",false,eCTA_Loading);
 						StationGui_AddApp("ComputerApp_Door_Control_COMS",false,eCTA_Loading);
+						StationGui_AddApp("ComputerApp_Door_Control_OMNI",(omni_inserted),eCTA_Omni);
 						StationGui_MainMenu();
 						bBackButton = false;
 					break;
@@ -2995,10 +3221,42 @@ class cScrMap : iScrMap
 						DoDoorControl(asEntityName);
 						bBackButton = true;
 					break;
+					
+					case eCTA_Omni:
+						DoCTAOmniGui(asEntityName);
+						bBackButton = true;
+					break;
+					
+					default: 
+						bBackButton = true;
+					break;
 				}
 		
 				StationGui_BackButton(bBackButton);
 			}
+	}
+	
+	bool bUpdateEleChipButtonPressed = false;
+	
+	bool DoCTAOmniGui(const tString&in asEntityName)
+	{
+		cImGuiWindowData windowData = StationGui_CreateDefaultWindowData();
+		cImGuiButtonData buttonData = StationGui_CreateToggleButtonData();
+		ImGui_SetDefaultButton(buttonData);
+		
+		ImGui_DoWindowStart("DoorControlApp_Label", StationGui_CreateDefaultWindowData(), ImGui_NrmPos(cVector3f(0.02, 0.02, 1)), ImGui_NrmSize(cVector2f(0.5, 0.85)));
+		
+		ImGui_SetModUseInput(bSecurityInsertedCTA && !bUpdateEleChipButtonPressed);
+		if(ImGui_DoButton("button_2", "DC_button_2", ImGui_NrmPos(0.075, 0.2, 2), ImGui_NrmSize(0.33, 0.08f)))
+		{
+			bUpdateEleChipButtonPressed = true;
+			Sound_CreateAtEntity("sfx_terminal_chipLatch", "Entities_Station/object/memchip/remove", "elevator_Chip_updated", 0.0f, false, 0.85f);
+			Entity_SetInteractionDisabled("elevator_Chip_updated",false);
+			Tool_SetHighlightActive("elevator_Chip_updated",true);
+		}
+		ImGui_DoWindowEnd();
+		
+		return true;
 	}
 	
 	void turnOffguiLamps()
@@ -3622,12 +3880,12 @@ class cScrMap : iScrMap
             {
                 case eComputerTerminalApp_FreezerLoading:
 				
-				aSinFeeder = (aSinFeeder + 1.1f);
+				aFreezerGUISinFeeder = (aFreezerGUISinFeeder + 1.1f);
 				aSinFeederSlow = (aSinFeederSlow + 0.01f);
 				
-				if(aSinFeeder >= 25565.0f)
+				if(aFreezerGUISinFeeder >= 25565.0f)
 				{
-					aSinFeeder = 1;
+					aFreezerGUISinFeeder = 1;
 				}
 				
 				if(aSinFeederSlow >= 25565.0f)
@@ -3733,13 +3991,13 @@ class cScrMap : iScrMap
 				////////////////////////////////////////
 				// 3 horizontal gauge bars
 				float fFillSize = DelayValue(fCompressor, 0, 0.25);
-				ImGui_DoGauge(gauge, fFillSize-0.25f+(cMath_Sin(aSinFeeder)/12), cVector3f_Zero, vBarSize);
+				ImGui_DoGauge(gauge, fFillSize-0.25f+(cMath_Sin(aFreezerGUISinFeeder)/12), cVector3f_Zero, vBarSize);
 				
 				fFillSize = DelayValue(fCompressor, 0.35, 0.6);
-				ImGui_DoGauge(gauge, fFillSize-0.34f+(cMath_Cos(aSinFeeder+2.5f)/11.0f), cVector3f_Zero, vBarSize);
+				ImGui_DoGauge(gauge, fFillSize-0.34f+(cMath_Cos(aFreezerGUISinFeeder+2.5f)/11.0f), cVector3f_Zero, vBarSize);
 				
 				fFillSize = DelayValue(fCompressor, 0.65, 1);
-				ImGui_DoGauge(gauge, fFillSize-0.66f+(cMath_Sin(aSinFeeder+45.6f)/28.0f), cVector3f_Zero, vBarSize);
+				ImGui_DoGauge(gauge, fFillSize-0.66f+(cMath_Sin(aFreezerGUISinFeeder+45.6f)/28.0f), cVector3f_Zero, vBarSize);
 			
 				ImGui_LayoutEnd();
 			}		 
