@@ -796,6 +796,22 @@ class cScrMap : iScrMap
 	{
 		SlideDoor_SetClosed("airlock2_2",true,false);
 		Entity_SetActive("airlock2_blockbox_2",true);
+		Map_AddTimer("timer_Airlock2TURNOFFLIGHTS",3.5f,"timer_Airlock2TURNOFFLIGHTS");
+		return false;
+	}
+	
+	void timer_Airlock2TURNOFFLIGHTS(const tString &in asTimer)
+	{
+		Lamp_SetLit("lamp_area2_enter_flicker*",false,true);
+	}
+	
+	bool ExitArea2(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Terminal_SetGuiActive("computer_panel_door_control",false,0.0f);
+		Terminal_SetGuiActive("crawlspace_big",false,0.0f);
+		Terminal_SetGuiActive("crawlspace_small*",false,0.0f);
+		SlideDoor_SetClosed("airlock2_1",true,false);
+		Entity_SetActive("airlock2_blockbox_1",true);
 		return false;
 	}
 	
@@ -1224,6 +1240,9 @@ class cScrMap : iScrMap
 	{
 		SlideDoor_SetClosed("airlock_1",true,false);
 		Entity_SetActive("airlock_blockbox_1",true);
+		Terminal_SetGuiActive("computer_panel_freezer",false,0.0f);
+		Terminal_SetGuiActive("terminal_map_3",false,0.0f);
+		Terminal_SetGuiActive("computer_laptop_modded_GUI_1",false,0.0f);
 		return false;
 	}
 	
@@ -1469,6 +1488,9 @@ class cScrMap : iScrMap
 			{
 				SlideDoor_SetClosed("slidedoor_lobby_airlock_2", true, false);
 				Music_Play("01_01_getting_out",0.7f, false, eMusicPrio_BigEvent);
+				Terminal_SetGuiActive("panel_infoTrain*",false,0.0f);
+				Terminal_SetGuiActive("security_office_terminal",false,0.0f);
+				Terminal_SetGuiActive("terminal_map_2",false,0.0f);
 			}
 			return false;
 		}
