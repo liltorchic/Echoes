@@ -58,11 +58,16 @@
 	bool clicked = false;
 	int LightPeekLength = 8.0f;
 	
+	float fMoveAttemptInterval = 3.0f;
+	int iMonsterRoomLocation = -1000;
+	bool m_bPaused = false;
+	
 	int iPlayerLoc = -1;
 	int iPlayerLocPrev = -2;
 	int iPlayerLocVentPrev = -2;
 	bool bExitedNearHatch = false;
 	bool b6to8 = false;
+
 	
 	int choice = -1;
 	
@@ -146,7 +151,8 @@ class cScrMap : iScrMap
 	{
 		afY = cLux_DrawDebugText("" + dev_random, afY);
 		afY = cLux_DrawDebugText("room: " + iPlayerLoc, afY);
-		//afY = cLux_DrawDebugText("prev: " + iPlayerLocPrev, afY);
+		afY = cLux_DrawDebugText("monster: " + iMonsterRoomLocation, afY);
+		afY = cLux_DrawDebugText("m_bPaused: " + m_bPaused, afY);
 		return afY;
 	}
 	
@@ -216,8 +222,103 @@ class cScrMap : iScrMap
 			cLux_AddDebugMessage("TramIntroSeq()");
 			TramIntroSeq();
 		}
+		
+		
+		
+		Map_AddTimer("m_pace_Timer",1.0f,"m_pace_Timer");
 
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	void m_pickNewRoom()
+	{
+			if(cMath_RandRectl(1, 100) <= 20 && !m_bPaused)// 20% chance to move
+			{
+				if(cMath_RandRectl(1, 100) <= 10)// 10% chance to goto player room
+				{
+					m_triggerMove(true);//move monster to player
+				}
+				else
+				{
+					m_triggerMove(false);
+				}
+			}
+			else if(m_bPaused)
+			{
+				//were paused, dont spam the log
+			}
+			else
+			{
+				Map_SetTimerPaused("m_pace_Timer",true);
+				cLux_AddDebugMessage("__m__ : Failed chance to move!!");
+			}
+	}
+	
+	void m_triggerMove(bool _bDirectToPlayer)
+	{	
+		if(_bDirectToPlayer)
+		{
+			cLux_AddDebugMessage("__m__ : Moved monster to player room!");
+			iMonsterRoomLocation = iPlayerLoc;
+			Map_SetTimerPaused("m_pace_Timer",true);
+			m_bPaused = true;
+		}
+		else
+		{
+			int temp = cMath_RandRectl(1, 19);
+			if(temp == iPlayerLoc)//if we randomly landed on player
+			{
+				cLux_AddDebugMessage("__m__ : Moved monster to player room!");
+				iMonsterRoomLocation = temp;
+				Map_SetTimerPaused("m_pace_Timer",true);
+				m_bPaused = true;
+			}
+			else
+			{
+				cLux_AddDebugMessage("__m__ : Moved monster to "+temp+" room!");
+				iMonsterRoomLocation = temp;
+			}
+		}
+	}
+	
+	//called when a player changes locations
+	void m_playerMovedNotif()
+	{
+		cLux_AddDebugMessage("__m__ : Player moved to a new room!!");
+		Map_SetTimerPaused("m_pace_Timer",false);
+		m_bPaused = false;
+	}
+	
+	
+	void m_pace_Timer(const tString &in asTimer)
+	{
+		if(!m_bPaused)//if we aren't paused
+		{
+			cLux_AddDebugMessage("__m__ : m_pace_Timer()");
+			m_pickNewRoom();
+		}
+		Map_AddTimer("m_pace_Timer",fMoveAttemptInterval,"m_pace_Timer"); // recursivly call 
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	void OnEnter()
 	{
@@ -2302,6 +2403,7 @@ class cScrMap : iScrMap
 			
 			iPlayerLoc = -10;//vent
 			
+			
 		}
 		else if(alState == -1)
 		{
@@ -2318,6 +2420,7 @@ class cScrMap : iScrMap
 			}
 		}
 		
+		m_playerMovedNotif();
 		Entity_SetActive("climbArea_hatch_airvent_*", !mbInTunnel_shortcut);
 		Player_SetJumpDisabled(mbInTunnel_shortcut);
 
@@ -2478,6 +2581,7 @@ class cScrMap : iScrMap
 				
 			}
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2493,7 +2597,7 @@ class cScrMap : iScrMap
 			iPlayerLoc = iPlayerLocPrev;
 			iPlayerLocPrev = 1;
 		}
-		
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2509,6 +2613,7 @@ class cScrMap : iScrMap
 			iPlayerLoc = iPlayerLocPrev;
 			iPlayerLocPrev = 2;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2522,6 +2627,7 @@ class cScrMap : iScrMap
 		{
 			bExitedNearHatch = false;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2551,6 +2657,7 @@ class cScrMap : iScrMap
 			}
 			
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2565,7 +2672,8 @@ class cScrMap : iScrMap
 		{
 			iPlayerLoc = iPlayerLocPrev;
 			iPlayerLocPrev = 104;
-		}	
+		}
+		m_playerMovedNotif();	
 		return true;
 	}
 	
@@ -2579,7 +2687,8 @@ class cScrMap : iScrMap
 		{
 			iPlayerLoc = 104;
 			
-		}	
+		}
+		m_playerMovedNotif();	
 		return true;
 	}
 	
@@ -2593,6 +2702,7 @@ class cScrMap : iScrMap
 		{
 			b6to8 = false;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2616,7 +2726,8 @@ class cScrMap : iScrMap
 			{
 				iPlayerLoc = iPlayerLocPrev;
 			}
-		}	
+		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2629,7 +2740,8 @@ class cScrMap : iScrMap
 		else if (alState == -1)//exited
 		{
 			iPlayerLoc = 6;
-		}	
+		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2644,7 +2756,8 @@ class cScrMap : iScrMap
 		else if (alState == -1)//exited
 		{
 			iPlayerLoc = iPlayerLocPrev;
-		}	
+		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2658,6 +2771,7 @@ class cScrMap : iScrMap
 		{
 			iPlayerLoc = 6;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2674,6 +2788,7 @@ class cScrMap : iScrMap
 		{
 			bBulkhead3 = false;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2687,6 +2802,7 @@ class cScrMap : iScrMap
 		{
 			bhallwayEast = false;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2700,6 +2816,7 @@ class cScrMap : iScrMap
 		{
 			bhallway2 = false;
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2738,7 +2855,8 @@ class cScrMap : iScrMap
 			}
 			
 			iPlayerLocPrev = 101;
-		}	
+		}
+		m_playerMovedNotif();	
 		return true;
 	}
 	
@@ -2752,6 +2870,7 @@ class cScrMap : iScrMap
 				iPlayerLocPrev = 103;
 			}
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 
@@ -2765,6 +2884,7 @@ class cScrMap : iScrMap
 				iPlayerLocPrev = 100;
 			}
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -2778,6 +2898,7 @@ class cScrMap : iScrMap
 				iPlayerLocPrev = 105;
 			}
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 
@@ -2791,6 +2912,7 @@ class cScrMap : iScrMap
 				iPlayerLocPrev = 103;
 			}
 		}
+		m_playerMovedNotif();
 		return true;
 	}
 	
@@ -3517,8 +3639,17 @@ class cScrMap : iScrMap
 		
 		if(ImGui_TimerOver("staticTimer"))
 		{
+			if(crawlspacePuzzleCompleted)
+			{
+				ImGui_AddTimer("beginTimer",cMath_RandRectl(1,4));//off time
+			}
+			else
+			{
+				ImGui_AddTimer("beginTimer",cMath_RandRectl(6,20));//off time
+			}
 			
-			ImGui_AddTimer("beginTimer",cMath_RandRectl(6,20));//off time
+			
+			
 			showStatic = false;
 		}
 		
@@ -3634,12 +3765,14 @@ class cScrMap : iScrMap
 					ImGui_SetModUseInput(crawlspacePuzzleCompleted);
 					crawlspace_big_OnGui_first = true;
 					crawlspacePuzzleCompleted = true;
-					Sound_CreateAtEntity("hatch_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_back", asEntityName, 0.0f, false, 1.0f); 
+					Sound_CreateAtEntity("hatch_terminal_welcome", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_device_connect", asEntityName, 0.0f, false, 1.0f); 
 					Terminal_SetAllowInteraction(asEntityName, false);
 					Terminal_SetShowMouse(asEntityName, false);
 					Player_ExitTerminal();
 					Entity_SetActive("climbArea_hatch_shortcut_hallway",true);
 					Button_SetLocked("hatch_hallway_button_2",false,true);
+					Map_AddTimer("_guiSparkFX_Timer", 0.67f, "_guiSparkFX_Timer");
+					
 					
 			}
 			ImGui_SetModUseInput(true);
@@ -3668,6 +3801,14 @@ class cScrMap : iScrMap
 	ImGui_DoWindowEnd();
 		}
 		
+	}
+	
+	
+					
+				
+	void _guiSparkFX_Timer(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("hatch_terminal_welcome", "01_02_upsilon_inside_02/sfx/com_room_wau_sparks", "crawlspace_big", 0.0f, false, 1.0f); 
 	}
 
 
