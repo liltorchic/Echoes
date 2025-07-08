@@ -44,11 +44,14 @@ class cScrMap : iScrMap
 	// Set up map environment
 	void Setup()
 	{
+		cLux_AddDebugMessage("--setup--");
 		Effect_Fade_Out(2.0f);
 		Effect_Fade_In(2.0f);	
 	}
 	
-	void PreloadMap(){
+	void PreloadMap()
+	{
+		cLux_AddDebugMessage("--preload--");
 		Map_Preload("03_flooded.hpm");
 		Map_SetPreloadPriority(eWorldStreamPriority_Low);
 	}
@@ -59,19 +62,18 @@ class cScrMap : iScrMap
 	// Run first time starting map
 	void OnStart()
 	{
-		Player_StartLookAt("LookArea",10.0f,10.0f,10.0f);
-		Map_AddTimer("timer_PlayerStopLookAt",0.75f,"timer_PlayerStopLookAt");
+		cLux_AddDebugMessage("--start--");
 		
-		Map_AddTimer("timer_OpenElevatorDoor_Inner",2.0f,"timer_OpenElevatorDoor_Inner");
 		
 		Sound_Stop("Sound_Airlock",0.0f);
-		ParticleSystem_SetVisible("Airlock_ParticleSystem_*",false);
 		
 		Map_AddTimer("timer_LampFlickerDelay",0.5f,"timer_LampFlickerDelay");
 		
 		SetupMonsterPathNode();
-		PreloadMap();
+		//PreloadMap();
 		Music_StopAll(1.0f);
+
+		open_elevator_doors();
 	}
 
 	//-------------------------------------------------------
@@ -96,7 +98,6 @@ class cScrMap : iScrMap
 		
 		if(alAction == eAction_Test1)
 		{
-			Entity_PlaceAtEntity("omnitool", "Player");
 		}
 		
 		if(alAction == eAction_Test2)
@@ -174,11 +175,22 @@ class cScrMap : iScrMap
 	{
 		Player_StopLookAt(0.0f);
 	}
+
+	void open_elevator_doors()
+	{
+		cLux_AddDebugMessage("open_elevator_doors");
+		Map_AddTimer("timer_OpenElevatorDoor_Inner",1.0f,"timer_OpenElevatorDoor_Inner");
+		Map_AddTimer("timer_OpenElevatorDoor_Outer",2.2f,"timer_OpenElevatorDoor_Outer");
+		Button_SetLocked("panel_elevator", false,true);
+	}
 	
 	void timer_OpenElevatorDoor_Inner(const tString &in asTimer)
 	{
 		SlideDoor_SetClosed("Elevatordoor_inner",false,false);
-		Button_SetLocked("panel_elevator", false,true);
+	}
+	void timer_OpenElevatorDoor_Outer(const tString &in asTimer)
+	{
+		SlideDoor_SetClosed("Elevatordoor_outer",false,false);
 	}
 	
 	void timer_CloseElevatorDoor_Outer(const tString &in asTimer)
