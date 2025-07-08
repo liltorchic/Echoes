@@ -162,7 +162,6 @@
 		<Entry Name="DOOR">DOOR</Entry>	
 		<Entry Name="MALFUCTION">MALFUCTION</Entry>	
 		<Entry Name="STATUS">Missing (1) security chips!</Entry>
-		<Entry Name="DOOR">DOOR</Entry>	
 		<Entry Name="ACTIVE">ACTIVE</Entry>			
 	</CATEGORY>	
 	
@@ -171,6 +170,12 @@
 		<Entry Name="ComputerApp_Airlock_Dialog_Title">Airlock Progress</Entry>
 		<Entry Name="ComputerApp_Airlock_Dialog_Text_1">Please wait...</Entry>
 		<Entry Name="ComputerApp_Airlock_Dialog_Text_2">Please proceed.</Entry>
+	</CATEGORY>
+
+	<CATEGORY Name="Terminal_Reset">
+		<Entry Name="Terminal_Reset">Manage System</Entry>
+		<Entry Name="reset_Messages">Email</Entry>
+		<Entry Name="reset_2">Regulator Config</Entry>
 	</CATEGORY>
 
 	
@@ -196,7 +201,11 @@
 		<Entry Name="text1">Redirect</Entry>
 		<Entry Name="text2">Switching Power Relays</Entry>
 		<Entry Name="ComputerApp_Redirect_status">Redirect O.K.</Entry>		
+	</CATEGORY>	
 
-	</CATEGORY>		
+	<CATEGORY Name="Terminal_keypad">
+		<Entry Name="ComputerApp_Header">Power Room</Entry>
+	</CATEGORY>	
+		
 		
 </LANGUAGE>
