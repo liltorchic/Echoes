@@ -33,44 +33,63 @@
 /*Place any global values here. These must be const variables as they will not be saved*/
 /*This is also the place for enums and classes, but these should be avoided whenever possible*/
 
-//cave
+	bool testtriggger = false;
+	bool DEVELOPERMODE = false;
+
+	int imagetraideID = 0;
+
+//-------------------------------------------------- Cave --------------------------------------------------
 	bool bIsPlayerInCave = false;
 	
-//area 1
-
+//-------------------------------------------------- Area 1 --------------------------------------------------
+	bool bEnteredLab_1 = false;
+	bool bPickedUpChipLab_2 = false;
+	bool bPickedUpAcid = false;
+	bool bSkipIntoSeq = false;
+	bool bIsEnemyActiveLab_1 = false;
+	bool bIsEnemySpawnedLab_1 = false;
+	bool hasChipBeenAquired = false;
+	
 //freezer
+	bool isPlayerInsideFreezerArea = false;
+	bool sFreezerDoorOpen = false;
+	bool bFreezerChipInserted = false;
+	bool bFreezerChipInteracted = false;
+	//gui
 	float aFreezerGUISinFeeder = 1.0f;
 	float aSinFeederSlow = 1.0f;
 	bool bFreezerTerminalBool = false;
 	bool btFreezerMain_working = false;
 	
-//office
+//office	
+	
 
-//area 2 
-
-
+//-------------------------------------------------- Area 2 --------------------------------------------------
+	bool isPlayerinArea2 = false;
+	
 	bool mbInTunnel_climb = false;	
 	bool mbInTunnel_shortcut = false;
 	bool bPressedFlashlight = false;
+
+	//pda and monster and player tracking
 	bool bPickedUpIPAD = false;
 	bool bInIPAD = false;
+	bool bIpadOOR = false;
 	bool mbUsingIpad = false;
 	bool clicked = false;
 	int LightPeekLength = 8.0f;
-	
+	float fStunDuration = 6.0f;
 	float fMoveAttemptInterval = 3.0f;
 	int iMonsterRoomLocation = -1000;
 	bool m_bPaused = false;
-	
 	int iPlayerLoc = -1;
 	int iPlayerLocPrev = -2;
 	int iPlayerLocVentPrev = -2;
 	bool bExitedNearHatch = false;
 	bool b6to8 = false;
-
-	
 	int choice = -1;
-	
+
+	//security
 	bool bSecurityInsertedCTA = false;
 	bool elevatorChipUpdateInserted = false;
 	bool elevatorChipUpdateInsertedFinally = false;
@@ -81,16 +100,6 @@
  
 enum eComputerTerminalApp
 {
-	//eComputerTerminalApp_MainMenu = -1,
-	//eComputerTerminalApp_MainMenu_LobbyComputer = -1,
-	//eComputerTerminalApp_LiftLockdown,
-	//eComputerTerminalApp_SecurityLog,
-	
-	//eComputerTerminalApp_Lobby_Power,
-	//eComputerTerminalApp_Lobby_Confidential,
-	//eComputerTerminalApp_Lobby_Emergency,
-	
-	//eBunkerTerminalApp_Log,
 	eBunkerTerminalApp_MainMenu = -1,
 	eBunkerTerminalApp_Messages,
 	eBunkerTerminalApp_Map,
@@ -108,23 +117,13 @@ enum eComputerTerminalApp
 	
 class cScrMap : iScrMap
 {
-	bool DEVELOPERMODE = true;
 	int dev_random = cMath_RandRectl(1000, 9999);
-	//--------------------------------------------
- 
-	//////////////////////////////////////////////////////////////////////////////////////////
-	// ==============
-	// MAIN CALLBACKS
-	// ==============
-	//{///////////////////////////////////////////////////////////////////////////////////////
- 	////////////////////////////
-	
-		////////////////////////////
-	// To get when player makes input (mostly used for debug)
+
+	// To get when player makes input 
 	void OnAction(int alAction, bool abPressed) 
 	{
 
-		
+		//on pressed F (flashlight key)
 		if(alAction == eAction_Flashlight && bPickedUpIPAD)
 		{
 			bPressedFlashlight = true;
@@ -135,6 +134,23 @@ class cScrMap : iScrMap
 			}
 		}
 		
+		//on pressed 1 key
+		if(alAction == eAction_Test1)
+		{
+			catchPlayer();
+		}
+
+		if(alAction == eAction_Test8)
+		{
+			PreloadMap();
+		}
+		
+		if(alAction == eAction_Test9)
+		{
+			changemap();
+		}
+
+		//if no button is pressed
 		if(abPressed==false)
 		{
 			bPressedFlashlight = false;
@@ -142,8 +158,8 @@ class cScrMap : iScrMap
 		}
 	}
 	
-	bool testtriggger = false;
-	//-------------------------------------------------------
+	
+
 
 	////////////////////////////
 	// This only used for pure debug purposes when info needs to printed.
@@ -175,8 +191,11 @@ class cScrMap : iScrMap
 		CathTool_ResetScreen(eCathToolVariant_HelperJane);
 	}
 	
-	int imagetraideID = 0;
+
 	
+	
+	////////////////////////////
+	// Run first time starting map
 	void OnStart()
 	{
 		cLux_AddDebugMessage("OnStart()");
@@ -186,21 +205,20 @@ class cScrMap : iScrMap
 		
 		ImGui_PreloadImage("antennacontrol_power");
 		
-		Effect_Fade_Out(0);			
-		//cLux_AddDebugMessage("Begin in darkness..");
+		//start in darkness
+		Effect_Fade_Out(0);	
+		//setup player for intro		
 		Player_SetJumpDisabled(true);
-		Player_SetMoveSpeedMul(1.0);
-		Player_SetLookSpeedMul(1.0);
-		Player_SetRunSpeedMul(1.0);
+		Player_SetMoveSpeedMul(0.01);
+		Player_SetLookSpeedMul(0.01);
+		Player_SetRunSpeedMul(0.72);
 		Player_SetFlashlightDisabled(true);
 		Sound_SetGlobalVolume(0.0f, eSoundEntryType_WorldAll);
-		imagetraideID = Effect_ImageTrail_Start(1.5, 0.2, 10, 2); 
+		imagetraideID = Effect_ImageTrail_Start(1.5, 0.2, 10, 4); 
 		PauseMenu_Enabled(false);
 		Player_ShowCrossHairIcons(false);
-		
-		Entity_AttachToEntity("spot_l1sfx_*","area_movelight","",true,false,false); // attach lights to move area in lab 1
 			
-			//if we are in debug mode
+		//if we are in debug mode
 		if (cLux_ScriptDebugOn() && DEVELOPERMODE)
 		{
 			cLux_AddDebugMessage("debug on");
@@ -219,110 +237,47 @@ class cScrMap : iScrMap
 		}
 		else
 		{
+			//start into seq
 			cLux_AddDebugMessage("TramIntroSeq()");
 			TramIntroSeq();
 		}
-		
-		
-		
-		Map_AddTimer("m_pace_Timer",1.0f,"m_pace_Timer");
+	}
 
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	void m_pickNewRoom()
+	void changemap()
 	{
-			if(cMath_RandRectl(1, 100) <= 20 && !m_bPaused)// 20% chance to move
-			{
-				if(cMath_RandRectl(1, 100) <= 10)// 10% chance to goto player room
-				{
-					m_triggerMove(true);//move monster to player
-				}
-				else
-				{
-					m_triggerMove(false);
-				}
-			}
-			else if(m_bPaused)
-			{
-				//were paused, dont spam the log
-			}
-			else
-			{
-				Map_SetTimerPaused("m_pace_Timer",true);
-				cLux_AddDebugMessage("__m__ : Failed chance to move!!");
-			}
+		Map_ChangeMap("02_under.hps","PlayerStartArea_1","","");
 	}
-	
-	void m_triggerMove(bool _bDirectToPlayer)
-	{	
-		if(_bDirectToPlayer)
-		{
-			cLux_AddDebugMessage("__m__ : Moved monster to player room!");
-			iMonsterRoomLocation = iPlayerLoc;
-			Map_SetTimerPaused("m_pace_Timer",true);
-			m_bPaused = true;
-		}
-		else
-		{
-			int temp = cMath_RandRectl(1, 19);
-			if(temp == iPlayerLoc)//if we randomly landed on player
-			{
-				cLux_AddDebugMessage("__m__ : Moved monster to player room!");
-				iMonsterRoomLocation = temp;
-				Map_SetTimerPaused("m_pace_Timer",true);
-				m_bPaused = true;
-			}
-			else
-			{
-				cLux_AddDebugMessage("__m__ : Moved monster to "+temp+" room!");
-				iMonsterRoomLocation = temp;
-			}
-		}
-	}
-	
-	//called when a player changes locations
-	void m_playerMovedNotif()
+
+	bool quicksave()
 	{
-		cLux_AddDebugMessage("__m__ : Player moved to a new room!!");
-		Map_SetTimerPaused("m_pace_Timer",false);
-		m_bPaused = false;
+		cLux_AddDebugMessage("quicksaving...");
+		Game_AutoSave();
+		return true;
 	}
-	
-	
-	void m_pace_Timer(const tString &in asTimer)
+
+		
+ 	void PreloadMap()
 	{
-		if(!m_bPaused)//if we aren't paused
-		{
-			cLux_AddDebugMessage("__m__ : m_pace_Timer()");
-			m_pickNewRoom();
-		}
-		Map_AddTimer("m_pace_Timer",fMoveAttemptInterval,"m_pace_Timer"); // recursivly call 
+		cLux_AddDebugMessage("PreloadMap()");
+		Map_SetPreloadPriority(eWorldStreamPriority_Low);
+		Map_Preload("02_under.hpm");
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+	////////////////////////////
+	// Run when entering map
 	void OnEnter()
 	{
 		cLux_AddDebugMessage("OnEnter()");
+		
+		//reenable f for ipad after death
+		if(Player_ToolIsInInventory("ipad"))
+		{
+			bPickedUpIPAD = true;
+		}
+		else
+		{
+			bPickedUpIPAD = false;
+		}
 	}
 	
 	void OnLeave()
@@ -330,20 +285,15 @@ class cScrMap : iScrMap
 		cLux_AddDebugMessage("OnLeave()");
 		Player_SetActive(true);
 		Player_ShowCrossHairIcons(true);
+		Light_SetVisible("SpotLight_death",false);
+		ParticleSystem_SetActive("ParticleSystem_die",false);
 		
 		if(cLux_ScriptDebugOn())
 		{
 			cLux_GetGuiHandler().SetGameHudInputFocus(false);
 		}
 	}
-	
-	
- 	void PreloadMap()
-	{
-		cLux_AddDebugMessage("PreloadMap()");
-		Map_SetPreloadPriority(eWorldStreamPriority_Low);
-		Map_Preload("02_under.hpm");
-	}
+
 	
 	void SetupPlayer()
 	{
@@ -451,6 +401,9 @@ class cScrMap : iScrMap
 		Billboard_SetVisible("Billboard_107", false);
 		Billboard_SetVisible("Billboard_102", false);
 		Billboard_SetVisible("Billboard_101", false);
+
+		// attach lights to move area in lab 1 (scanner fx)
+		Entity_AttachToEntity("spot_l1sfx_*","area_movelight","",true,false,false);
 		
 		//freezer lamps
 		Lamp_SetLit("freezer_lamp_green",false,true);		
@@ -459,6 +412,9 @@ class cScrMap : iScrMap
 	//area 2
 		Prop_RotateToSpeed("main0_lamp*",2.0,2.0,false,"");
 		
+		//setup death room in area 2
+		Light_SetVisible("SpotLight_death",false);
+		ParticleSystem_SetActive("ParticleSystem_die",false);
 		
 	//elevator room
 		StickyArea_AttachBody("StickyArea_ElevatorChip","elevatorchip_broken_Body_chip");
@@ -479,6 +435,7 @@ class cScrMap : iScrMap
 		shakeMapPer();
 	}
 	
+	//map shaker
 	void shakeMapPer()
 	{
 		Map_AddTimer("timer_StartPerMapShake",cMath_RandRectf(45.0f,360.0f),"timer_StartPerMapShake");
@@ -516,7 +473,7 @@ class cScrMap : iScrMap
 		Sound_CreateAtEntity("sound_fx__periodic_map_shake", "level_amb_shared_interior/amb/sfx/dust_sprinkle_large_space", "player", 0.0f, false, 1.0f);
 	}
  
-
+	//for loop to manage door status
 	void SetupLockedDoorStates()
 	{
 		for(int a = 1; a <= 10; a++)
@@ -539,19 +496,26 @@ class cScrMap : iScrMap
 		SlideDoor_SetOpenableByAgent("LabDoor_10", true);
 	}
 	
-	
+	//puppet robot scare in power room
 	void SetupMonsterPathNode()
 	{
-		for(int a = 1; a <= 221; a++)
+		for(int a = 1; a <= 212; a++)
 		{
-			Pathfinder_Track_Add("puppet_1_1", "PathNodeArea_" + a, 0.0f, 0.5f, "", false);
+			Pathfinder_Track_Add("puppet_1_1", "PathNode_Area_1_" + a, 0.0f, 0.5f, "", false);
 		}
+
 		for(int c = 1; c <= 12; c++)
 		{
 			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_Cargo_robot_" + c, 0.0f, 0.5f, "", false);
 			//cLux_AddDebugMessage("PathNode_Cargo_robot_" + c);
 		}
 		AddMonstersToWorld();
+	}
+
+	//seq to start the game
+	void TramIntroSeq()
+	{
+		SeqIntro("");
 	}
 	
 	void AddMonstersToWorld()
@@ -565,36 +529,20 @@ class cScrMap : iScrMap
 		Light_SetVisible("Spot_monsterReveal",false);
 	}
 	
-///setup end
-//////////////////////////////////
-
-	bool isPlayerinArea2 = false;
-	bool hasChipBeenAquired = false;
-
-	void TramIntroSeq()
-	{
-		SeqIntro("");
-	}
-	
+	//left tram
 	bool train_exit_onEnter(const tString &in asParent, const tString &in asChild, int alState)
 	{
-		Music_Play("01_01_passage",1.0f,true,eMusicPrio_BgAmb);
+		//Music_Play("01_01_passage",1.0f,true,eMusicPrio_BgAmb);
 		return false;
 	}
 	
 	bool elevatorroom0_onEnter(const tString &in asParent, const tString &in asChild, int alState)
 	{
-		Music_Stop(1.5f,eMusicPrio_BgAmb);
 		return false;
 	}
 	
 	
-	bool quicksave(const tString &in asParent, const tString &in asChild, int alState)
-	{
-		cLux_AddDebugMessage("quicksaving...");
-		Game_AutoSave();
-		return false;
-	}
+
 
 	//kill trigger for elevator
 	bool TriggerArea_elv_death(const tString &in asParent, const tString &in asChild, int alState)
@@ -679,43 +627,18 @@ class cScrMap : iScrMap
 		return false;
 	}
 
- 
-	//-------------------------------------------------------
- 
-	//} END MAIN CALLBACKS
- 
- 
-	//////////////////////////////////////////////////////////////////////////////////////////
-	// ==============
-	// MAIN FUNCTIONS
-	// ==============
-	//{///////////////////////////////////////////////////////////////////////////////////////
- 
-	//-------------------------------------------------------
- 
-	/*Put any variables that are used in more than one scene here.*/
-	
-	bool bEnteredLab_1 = false;
-	bool bPickedUpChipLab_2 = false;
-	bool bPickedUpAcid = false;
-	bool bSkipIntoSeq = false;
-	bool bIsEnemyActiveLab_1 = false;
-	bool bIsEnemySpawnedLab_1 = false;
-	//-------------------------------------------------------
+	bool trigger_tunnel_trail(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		//(float afAmount,float afFadeInTime,float afStayTime,float afFadeOutTime)
+		imagetraideID = Effect_ImageTrail_Start(0.7, 5.0, -1, 2); 
+		return false;
+	}
 
+ 
 	//	AIRLOCK	AIRLOCK	AIRLOCK	AIRLOCK
 	bool bIsOpenAirlock_1 = false;
 	bool bIsOpenAirlock_2 = false;
  
-	/*Put any functions that are used in more than one scene here.*/
-	
-	
-	// AIRLOCK	AIRLOCK	AIRLOCK	AIRLOCK
-	////////////////////////////
-	// Opens airlock 1
-
-	
-
 	bool Airlock1(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1)
@@ -898,6 +821,9 @@ class cScrMap : iScrMap
 		SlideDoor_SetClosed("airlock2_2",true,false);
 		Entity_SetActive("airlock2_blockbox_2",true);
 		Map_AddTimer("timer_Airlock2TURNOFFLIGHTS",3.5f,"timer_Airlock2TURNOFFLIGHTS");
+		cLux_AddDebugMessage("__m__ : ai active");
+		Map_AddTimer("m_pace_Timer",1.0f,"m_pace_Timer");//start monster ai
+		quicksave();
 		return false;
 	}
 	
@@ -913,6 +839,8 @@ class cScrMap : iScrMap
 		Terminal_SetGuiActive("crawlspace_small*",false,0.0f);
 		SlideDoor_SetClosed("airlock2_1",true,false);
 		Entity_SetActive("airlock2_blockbox_1",true);
+		
+		
 		return false;
 	}
 	
@@ -963,7 +891,7 @@ class cScrMap : iScrMap
 		Lamp_SetFlickerActive("ceiling_theta_large_10",true);		
 	}
 
-
+	bool MonsterSpawn_quicksave = false;
 	bool MonsterSpawn(const tString &in asParent, const tString &in asChild, int alState)
 	{
 	
@@ -972,6 +900,12 @@ class cScrMap : iScrMap
 			Entity_SetActive("puppet_1_1",true);
 			Pathfinder_Track_Start("puppet_1_1", true, 1.0f, "");
 			bIsEnemyActiveLab_1 = true;
+		}
+
+		if(!MonsterSpawn_quicksave)
+		{
+			MonsterSpawn_quicksave = true;
+			quicksave();
 		}
 		return true;
 	}
@@ -982,7 +916,7 @@ class cScrMap : iScrMap
 		if(bIsEnemyActiveLab_1 == true && bIsEnemySpawnedLab_1 == true)
 		{
 			Map_AddTimer("timer_MonsterClear",20.0f,"timer_MonsterClear");
-			Pathfinder_MoveToNode("puppet_1_1","PathNodeArea_73","",0.0f,false,"");
+			Pathfinder_MoveToNode("puppet_1_1","PathNodeArea_353","",0.0f,false,"");
 			Music_Stop(3.5f,eMusicPrio_AgentAlert);
 			Music_Stop(3.5f,eMusicPrio_AgentHunt);
 			bIsEnemyActiveLab_1 = false;
@@ -1126,11 +1060,6 @@ class cScrMap : iScrMap
 		Sound_CreateAtEntity("valley_laser_sfx2", "Entities_Station/tech/scanner/scan_stop", "area_movelight", 0.0f, false, 1.0f);
 	}
 	
-	 
-
-	bool bFreezerChipInserted = false;
-	bool bFreezerChipInteracted = false;
-	
 	bool door_chip_item_CanBeUsed(const tString &in asTool, const tString &in asEntity)
 	{
 		if (asEntity == "InteractAuxArea_freezer" && bFreezerChipInserted == false) return true;
@@ -1164,8 +1093,6 @@ class cScrMap : iScrMap
 		bFreezerChipInserted = true;
 	}
 	
-	bool isPlayerInsideFreezerArea = false; //SlideDoor_SetOpenableByAgent("LabDoor_8", false);
-	bool sFreezerDoorOpen = false;
 	//1=enter -1=leave
 	bool TriggerArea_FreeezerDoors(const tString &in asParent, const tString &in asChild, int alState)
 	{	
@@ -1219,10 +1146,6 @@ class cScrMap : iScrMap
 	}
 
 	
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// OMNITOOL  /////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	////////////////////////
 	//// Omnitool Logic
@@ -1333,7 +1256,7 @@ class cScrMap : iScrMap
 	
 	void timer_cathpickup(const tString &in asTimer)
 	{
-		Music_PlayExt("02_06_formattedchip",false,4.5f,1.0f,0.15f,0.0f,eMusicPrio_BigEvent, false);
+		Music_PlayExt("02_06_formattedchip",false,4.5f,1.0f,0.15f,0.0f,eMusicPrio_MinorEvent, false);
 	}
 
 
@@ -1403,6 +1326,8 @@ class cScrMap : iScrMap
 			Entity_SetActive("ClimbArea_1",false);
 			Entity_SetActive("ClimbArea_2",true);
 			Entity_SetActive("climb_area",false);
+			Music_PlayExt("01_02_tunnel", false, 0.8f, 1.0f, 1.0f, 0.0f, eMusicPrio_BgAmb, true);
+				
 		}
 		return false;
 	}
@@ -1458,6 +1383,8 @@ class cScrMap : iScrMap
 		Map_RemoveTimer("timer_alarmClassicMid");
 		Map_RemoveTimer("timer_alarmClassicLate");
 		Map_AddTimer("timer_silenceAlarms",0.25f,"timer_silenceAlarms");
+		Effect_ImageTrail_FadeOut(imagetraideID, 4.0f);
+		Music_PlayExt("01_02_trapped_pipes", true, 0.8f, 1.0f, 2.25f, 0.0f, eMusicPrio_BgAmb, false);
 		return false;
 	}
 		
@@ -1513,7 +1440,7 @@ class cScrMap : iScrMap
 				else if(Sequence_DoStepAndWait(5.0f)){Sound_CreateAtEntity("machine_revup", "03_02_omicron_inside/SFX/suit_diagnostics/motor/start", "button_checkpoint", 0.45f, false, 1.0f);}
 				else if(Sequence_DoStepAndWait(1.0f)){Sound_CreateAtEntity("machine_revup1", "03_02_omicron_inside/SFX/suit_diagnostics/motor/loop", "button_checkpoint", 0.0f, false, 1.0f);}
 				else if(Sequence_DoStepAndWait(1.0f)){Lamp_SetLit("lamp_checkpoint_*",true,true);Sound_CreateAtEntity("machine_checkpoint_2", "01_04_transport_station/SFX/train/lights_on", "lamp_checkpoint_1", 0.0f, false, 3.0f);Sound_CreateAtEntity("machine_checkpoint_2a", "01_04_transport_station/SFX/train/lights_on", "lamp_checkpoint_2", 0.0f, false, 3.0f);}	
-				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_SetActive("ParticleSystem_checkpoint_*",true);Sound_CreateAtEntity("machine_checkpoint_5a", "level_amb_shared_interior/amb/spot/steam/hi_pressure", "lamp_checkpoint_2", 0.0f, false, 2.0f);Sound_CreateAtEntity("machine_checkpoint_5b", "level_amb_shared_interior/amb/spot/steam/hi_pressure", "lamp_checkpoint_1", 0.0f, false, 2.0f);Music_StopAll(0.65f);}	
+				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_SetActive("ParticleSystem_checkpoint_*",true);Sound_CreateAtEntity("machine_checkpoint_5a", "level_amb_shared_interior/amb/spot/steam/hi_pressure", "lamp_checkpoint_2", 0.0f, false, 2.0f);Sound_CreateAtEntity("machine_checkpoint_5b", "level_amb_shared_interior/amb/spot/steam/hi_pressure", "lamp_checkpoint_1", 0.0f, false, 2.0f);}	
 				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_SetActive("ParticleSystem_checkpointb_*",true);}	
 				else if(Sequence_DoStepAndPause(2.0f)){phoneCall();FogArea_SetVisible("FogArea_checkpoint",true);}	
 				else if(Sequence_DoStepAndWait(1.45f)){ParticleSystem_Destroy("ParticleSystem_checkpoint*");ParticleSystem_SetVisible("ParticleSystem_checkpointb_*",false);ParticleSystem_SetActive("ParticleSystem_checkpointb_*",false);ParticleSystem_SetActive("ParticleSystem_checkpoint_*",false);Sound_Stop("machine_checkpoint_5*",0.35f);Sound_CreateAtEntity("machine_checkpoint_6", "03_02_omicron_inside/gameplay/robot_puzzle/motor/stop", "lever_checkpoint", 0.0f, false, 3.0f);}
@@ -1645,6 +1572,7 @@ class cScrMap : iScrMap
 		Map_AddTimer("timer_closedoorsfx",0.4f,"timer_closedoorsfx");
 		Voice_Stop("ElevatorBroken");
 		Light_SetBrightness("SpotLight_lure_1",0.0f);
+		Music_Stop(1.5f,eMusicPrio_BgAmb);
 		return false;
 	}
 	
@@ -1663,17 +1591,33 @@ class cScrMap : iScrMap
 
 	bool TriggerArea_robot_prescare(const tString &in asParent, const tString &in asChild, int alState)
 	{
-		if(alState == 1)
+		if(alState == 1)//01_01_door_storage_scare.ps
 		{
+			ParticleSystem_CreateAtEntity("ps_doorband","01_01_door_storage_scare.ps","TriggerArea_11",false);
+			ParticleSystem_CreateAtEntity("elecs","elec_spark_medium_bright_fast_oneshot.ps","TriggerArea_5",false);
 			Sound_CreateAtEntity("robot_prescare_1", "01_01_upsilon_awake/sfx/door_smash/door_smash", "cargobay_door_2", 0.1f, false, 1.0f);
 			Map_AddTimer("timer_robot_prescare",0.89f,"timer_robot_prescare");
+			Player_SetCrouching(true,false,false);
+			Sound_CreateAtEntity("player_fx","Player/reaction/air/gasp","Player", 0.0f, false, 0.8f);
+			Player_StartLookAt("cargobay_door_2", 1.5f, 2.0f, 2.0f);
 		}
 		return false;
 	}
 	
 	void timer_robot_prescare(const tString &in asTimer)
 	{
+		Player_StopLookAt(0.02f);
 		Sound_CreateAtEntity("robot_prescare_2", "01_01_upsilon_awake/sfx/construct_behind_door", "cargobay_door_2", 0.1f, false, 1.0f);
+	}
+
+	bool cargobay_door_2_button_2_OnPlayerInteract_first = false;
+	void cargobay_door_2_button_2_OnPlayerInteract(const tString &in asEntity)
+	{
+		if(!cargobay_door_2_button_2_OnPlayerInteract_first)
+		{
+			Music_PlayExt("01_01_ambient", true, 0.9f, 1.0f, 5.0f, 0.0f, eMusicPrio_BgAmb,false);
+			cargobay_door_2_button_2_OnPlayerInteract_first = true;
+		}
 	}
 	
 	bool bFusePuzzleSwitch_1 = false;
@@ -1777,6 +1721,8 @@ class cScrMap : iScrMap
 			cLux_AddDebugMessage("debug: Black out");
 			if(Entity_IsActive("TriggerArea_robot_prescare")){Entity_SetActive("TriggerArea_robot_prescare",false);}
 			hasMainLeverBennThrown = true;
+			imagetraideID = Effect_ImageTrail_Start(0.8, 0.0, 60, 10); 
+			Player_SetCrouching(true,false,false);
 		}
 	}
 	
@@ -1875,8 +1821,8 @@ class cScrMap : iScrMap
 				else if(Sequence_DoStepAndWait(0.95f)){seqRedLightsCargo("");Sound_CreateAtEntity("reboot", "Entities_Station/doors/electrical_doors/door_heavy_jam", "player", 0.0f, false, 2.0f);}
 				else if(Sequence_DoStepAndWait(0.45f)){seqMainLightsCargo("");Light_SetBrightness("SpotLight_31",0.25f);}
 				else if(Sequence_DoStepAndWait(1.0f)) {Sound_CreateAtEntity("reboot", "Entities_Station/doors/nuclear_scanner_door/close", "generator_radio_single_4", 0.0f, false, 2.0f);}
-				else if(Sequence_DoStepAndWait(1.2f)) {restorePower();}
-				else if(Sequence_DoStepAndWait(0.08f)){Music_Play("01_01_lightson",0.5f, false, eMusicPrio_BigEvent);Button_SetLocked("cargobay_door_*",false,true);Sound_CreateAtEntity("cargobay_door_1", "Entities_Station/doors/electrical_doors/electrical_door_ready", "cargobay_door_1", 0.0f, false, 3.0f);Sound_CreateAtEntity("cargobay_door_2", "Entities_Station/doors/electrical_doors/electrical_door_ready", "cargobay_door_2", 0.0f, false, 3.0f);}
+				else if(Sequence_DoStepAndWait(2.2f)) {restorePower();Music_Play("01_01_hole",1.0f, false, eMusicPrio_BigEvent);}
+				else if(Sequence_DoStepAndWait(0.0f)){Button_SetLocked("cargobay_door_*",false,true);Sound_CreateAtEntity("cargobay_door_1", "Entities_Station/doors/electrical_doors/electrical_door_ready", "cargobay_door_1", 0.0f, false, 3.0f);Sound_CreateAtEntity("cargobay_door_2", "Entities_Station/doors/electrical_doors/electrical_door_ready", "cargobay_door_2", 0.0f, false, 3.0f);}
 				
 			Sequence_End();
 		}
@@ -1978,7 +1924,7 @@ class cScrMap : iScrMap
 		{
 			int length = input.length() - 1;
 			int rand = cMath_RandRectl(0, length);
-			int rand2 = cMath_RandRectl(0, length );
+			int rand2 = cMath_RandRectl(0, length);
 			array<int> workingArray(length);
 			workingArray = input;
 			if(rand == rand2)
@@ -2101,7 +2047,7 @@ class cScrMap : iScrMap
 			Entity_SetActive("elevator_chip_world", true);
 			Prop_SetStaticPhysics("elevatorchip_broken",false);
 			Sound_CreateAtEntity("sound_elevator_button", "Entities_Station/object/server_dial/start", "theta_panel_elevator_1", 0.0f, false, 2.0f);
-			Player_RemoveTool("elevator_Chip*"); //removes tool from inventory
+			Player_RemoveTool(asTool); //removes tool from inventory
 
 		}
 		
@@ -2134,11 +2080,6 @@ class cScrMap : iScrMap
 		elevatorChipUpdateInsertedFinally = true;
 		bSecurityInsertedCTA = true;
 	}
-	
-	
-	
-	
-	
 	
 	//remove broken chip
 	void StickyArea_ElevatorChip_Detach(const tString &in asStickyArea, const tString &in asBodyName)
@@ -2181,13 +2122,8 @@ class cScrMap : iScrMap
 	
 	void timer_EndLevel(const tString &in asTimer)
 	{
-		Map_ChangeMap("02_under.hps","PlayerStartArea_1","","");
+		changemap();
 	}
-	
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// OFFICE  ///////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	void omnitool_panel_office_OnConnectionStateChange(const tString &in asEntity, int alState)
 	{
@@ -2499,23 +2435,267 @@ class cScrMap : iScrMap
 	{
 		Light_SetBrightness("PointLight_91", 0.0f);
 	}
-	
-	
-	
-	
-	//////////////////////////////player detection
-	// i dont know why i did this with ints and not enums
 
-	/*
-	int iPlayerLoc = -1;
-	int iPlayerLocPrev = -2;
-	int iPlayerLocVentPrev = -2;
-	bool bExitedNearHatch = false;
-	bool b6to8 = false;
-	 * 
-	 */
+	float crumbDelay = 1.0f;
+
+	//func to enable player to know what crawlspace power did (breadcrumbs)
+	void crawlspace_power_ind()
+	{
+		Map_AddTimer("timer_crawspace_breadcrumbs_group_1",crumbDelay,"timer_crawspace_breadcrumbs_group_1");
+	}
+
+	void timer_crawspace_breadcrumbs_group_1(const tString &in asTimer)
+	{
+		Lamp_SetLit("conduit_lamp_group_3_*", false, true);
+		Lamp_SetLit("conduit_lamp_group_1_*", true, true);
+		Map_AddTimer("timer_crawspace_breadcrumbs_group_2",crumbDelay,"timer_crawspace_breadcrumbs_group_2");
+	}
+
+	void timer_crawspace_breadcrumbs_group_2(const tString &in asTimer)
+	{
+		Lamp_SetLit("conduit_lamp_group_1_*", false, true);
+		Lamp_SetLit("conduit_lamp_group_2_*", true, true);
+		Map_AddTimer("timer_crawspace_breadcrumbs_group_3",crumbDelay,"timer_crawspace_breadcrumbs_group_3");
+	}
+
+	void timer_crawspace_breadcrumbs_group_3(const tString &in asTimer)
+	{
+		Lamp_SetLit("conduit_lamp_group_2_*", false, true);
+		Lamp_SetLit("conduit_lamp_group_3_*", true, true);
+		Map_AddTimer("timer_crawspace_breadcrumbs_group_1",crumbDelay,"timer_crawspace_breadcrumbs_group_1");
+	}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------- Area 2 monster logic -------------------------------------------------------
+
+	//when called, has a chance to trigger a monster move
+	void m_pickNewRoom()
+	{
+			if(cMath_RandRectl(1, 100) <= 20 && !m_bPaused)// 20% chance to move
+			{
+				if(cMath_RandRectl(1, 100) <= 10)// 10% chance to goto player room
+				{
+					m_triggerMove(true);//move monster to player
+				}
+				else
+				{
+					m_triggerMove(false);
+				}
+			}
+			else if(m_bPaused)
+			{
+				//were paused, dont spam the log
+			}
+			else
+			{
+				Map_SetTimerPaused("m_pace_Timer",true);
+				cLux_AddDebugMessage("__m__ : Failed chance to move!!");
+			}
+	}
+	
+	//when called, executes logic to move a monster to a new location
+	void m_triggerMove(bool _bDirectToPlayer)
+	{	
+		if(_bDirectToPlayer)
+		{
+			cLux_AddDebugMessage("__m__ : Moved monster to player room!");
+			iMonsterRoomLocation = iPlayerLoc;
+			m_setPaused(true);
+			Map_AddTimer("m_ai_event_1_Timer",cMath_RandRectf(10.0f, 30.0f),"m_ai_event_1_Timer");
+		}
+		else
+		{
+			int temp = cMath_RandRectl(1, 25);
+			
+			//remap 20-25 to 100-105
+			if(temp > 19)
+			{
+				temp = temp + 80;
+			}
+			
+			if(temp == iPlayerLoc)//if we randomly landed on player
+			{
+				cLux_AddDebugMessage("__m__ : Moved monster to player room!");
+				iMonsterRoomLocation = temp;
+				m_setPaused(true);
+				Map_AddTimer("m_ai_event_1_Timer",cMath_RandRectf(10.0f, 30.0f),"m_ai_event_1_Timer");
+			}
+			else
+			{
+				cLux_AddDebugMessage("__m__ : Moved monster to "+temp+" room!");
+				iMonsterRoomLocation = temp;
+			}
+		}
+	}
+	
+	//called when a player changes locations
+	void m_playerMovedNotif()
+	{
+		if(iPlayerLoc == iMonsterRoomLocation)
+		{
+			cLux_AddDebugMessage("__m__ : Player moved to monsters room!!");
+			Map_AddTimer("m_ai_event_1_Timer",cMath_RandRectf(10.0f, 30.0f),"m_ai_event_1_Timer");
+			m_setPaused(true);
+		}
+		else
+		{
+			cLux_AddDebugMessage("__m__ : Player moved to a new room!!");
+			Map_RemoveTimer("m_ai_event_1_Timer");
+			Map_RemoveTimer("m_ai_event_2_Timer");
+			m_setPaused(false);
+		}
+	}
+	
+	//monster heartbeat
+	void m_pace_Timer(const tString &in asTimer)
+	{
+		//if we aren't paused
+		if(!m_bPaused)
+		{
+			cLux_AddDebugMessage("__m__ : m_pace_Timer()");
+			m_pickNewRoom();
+		}
+		Map_AddTimer("m_pace_Timer",fMoveAttemptInterval,"m_pace_Timer"); // recursivly called 
+	}
+	
+	//called when a player uses ipad to stun monster
+	void m_stunCheck(int _room)
+	{
+		cLux_AddDebugMessage("stun_check()");
+		if (_room == iMonsterRoomLocation)
+		{
+			m_stun();
+		}
+	}
+	
+	//called when player stuns monster by using ipad
+	void m_stun()
+	{
+		cLux_AddDebugMessage("__m__ : Player stunned monster");
+		m_setPaused(true);
+		Map_RemoveTimer("m_ai_event_1_Timer");
+		Map_RemoveTimer("m_ai_event_2_Timer");
+		Map_RemoveTimer("m_ai_kill_Timer");
+		Map_AddTimer("m_setUnStuned_Timer",fStunDuration,"m_setUnStuned_Timer");
+	}
+	
+	//unstun timer
+	void m_setUnStuned_Timer(const tString &in asTimer)
+	{
+		m_setPaused(false);
+		cLux_AddDebugMessage("__m__ : unstuned monster");
+	}
+	
+	//monster hunt notification 1
+	void m_ai_event_1_Timer(const tString &in asTimer)
+	{
+		cLux_AddDebugMessage("__m__ : monster notif 1");
+		Sound_CreateAtEntity("monster", "03_02_omicron_inside/AMB/spot/window_rub", "player", 0.0f, false, 1.0f);
+		Map_AddTimer("m_ai_event_2_Timer",cMath_RandRectf(10.0f, 30.0f),"m_ai_event_2_Timer");
+	}
+	
+	//monster hunt notification 1
+	void m_ai_event_2_Timer(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("monster", "03_02_omicron_inside/AMB/spot/window_rub", "player", 0.0f, false, 1.0f);
+		Map_AddTimer("m_ai_kill_Timer",cMath_RandRectf(13.0f, 24.0f),"m_ai_kill_Timer");
+		cLux_AddDebugMessage("__m__ : monster notif 2");
+	}
+	
+	//monster hunt kill notification
+	void m_ai_kill_Timer(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("monster", "03_02_omicron_inside/AMB/spot/window_rub", "player", 0.0f, false, 1.0f);
+		Sound_CreateAtEntity("monster", "02_06_theta_tunnels/sfx/puppet_victims/puppet_victims_male/puppet_victims_male_against_wall", "player", 0.0f, false, 1.0f);
+		m_setPaused(true);
+		catchPlayer(); //kills player
+		cLux_AddDebugMessage("__m__ : ur dead, buddy...");
+		
+	}
+	
+	//kills player by teleporting to kill room
+	void catchPlayer()
+	{
+		Effect_Fade_Out(0);		
+		Player_Teleport("PlayerStartArea_death",true);
+		Player_EnableCameraLock(-15.0f, 15.0f, -10.0f,  10.0f);
+		PauseMenu_Enabled(false);
+		Player_ShowCrossHairIcons(false);
+		Player_SetJumpDisabled(true);
+		Player_SetFlashlightDisabled(true);
+		Player_SetMoveSpeedMul(0.0);
+		Player_SetLookSpeedMul(0.25);
+		Player_SetRunSpeedMul(0.0);
+		
+		Map_AddTimer("m_die_fadein_Timer",5.0f,"m_die_fadein_Timer");
+		Sound_CreateAtEntity("TriggerArea_death", "02_06_theta_tunnels/sweeteners/lights_out", "TriggerArea_death", 0.0f, false, 1.0f);
+				
+	}
+	
+	//monster kill fade in
+	void m_die_fadein_Timer(const tString &in asTimer)
+	{
+		Sound_CreateAtEntity("TriggerArea_death", "02_07_theta_exit_a/SFX/power_charger/power_hatch_remove", "TriggerArea_death", 0.0f, false, 1.0f);
+		Effect_Fade_In(6.0f);	
+		Map_AddTimer("m_die_activateMonster_Timer",5.0f,"m_die_activateMonster_Timer");
+	}
+	
+	//monster hunt kill
+	void m_die_activateMonster_Timer(const tString &in asTimer)
+	{
+		
+		ParticleSystem_SetActive("ParticleSystem_die",true);
+		Entity_SetActive("devil",true);
+		Entity_SetActive("DistortionArea_die",true);
+		Light_SetVisible("SpotLight_death",true);
+		Prop_MoveLinearTo("devil","devil_movehere",30.0f,45.0f,0.0f,true,"");
+		Sound_CreateAtEntity("player", "02_06_theta_tunnels/sfx/events/akers_smash_door", "player", 0.0f, false, 1.0f);
+		//Sound_CreateAtEntity("player", "01_04_transport_station/SFX/flesher/vent_event", "player", 0.0f, false, 1.0f);
+	}
+	
+	//monster kill fade out
+	bool TriggerArea_death_onTrigger(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Sound_SetGlobalVolume(0.0f, eSoundEntryType_WorldAll);
+		Effect_Fade_Out(0);	
+		Player_SetHealth(0);
+		return true;
+	}
+	
+	//sets m_ pause status
+	void m_setPaused(bool _shouldPause)
+	{
+		if(_shouldPause)
+		{
+			m_bPaused = true;
+			Map_SetTimerPaused("m_pace_Timer",true);
+			Map_SetTimerPaused("m_ai_event_1_Timer",true);
+			Map_SetTimerPaused("m_ai_event_2_Timer",true);
+			cLux_AddDebugMessage("__m__ : PAUSED");
+		}
+		else
+		{
+			if(m_bPaused)//if we are paused, prevents console spam
+			{
+				m_bPaused = false;
+				Map_SetTimerPaused("m_pace_Timer",false);
+				Map_SetTimerPaused("m_ai_event_1_Timer",false);
+				Map_SetTimerPaused("m_ai_event_2_Timer",false);
+				cLux_AddDebugMessage("__m__ : UNPAUSED");
+			}
+			
+		}
+	}
+	
+	void m_setUnPaused_Timer(const tString &in asTimer)
+	{
+		m_setPaused(false);
+	}
+	
+	//player detection
+	// i dont know why i did this with ints and not enums
 	 
-	//clipping
+	//clipping overlapping triggers :3
 	bool TriggerArea_cull_mainlab(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2529,6 +2709,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//clipping overlapping triggers :3
 	bool TriggerArea_cull_hallway2_1(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2557,6 +2738,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 
+	//player tracking
 	bool TriggerArea_a2_northhallway(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2585,6 +2767,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_closet(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2601,6 +2784,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_smalllab(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2617,6 +2801,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_hatchCheck(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2631,6 +2816,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_doorcontrol(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1) //entered
@@ -2661,6 +2847,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_hallway1(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2677,6 +2864,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_officeb(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2692,6 +2880,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_doorway1(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1) //entered
@@ -2706,6 +2895,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_staff(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1) //entered
@@ -2731,6 +2921,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_security(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2745,7 +2936,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
-	
+	//player tracking
 	bool TriggerArea_a2_mainlab(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1) //entered
@@ -2761,6 +2952,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_officea(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2775,9 +2967,11 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//bulkhead vars
 	bool bBulkhead3 = false;
 	bool bhallwayEast = false;
 	bool bhallway2 = false;
+	//player tracking
 	bool TriggerArea_bulkhead_3(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2792,6 +2986,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_hallwayEast(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1) //entered
@@ -2806,6 +3001,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_hallway2(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == 1) //entered
@@ -2820,6 +3016,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_a2_hallway2(const tString &in asParent, const tString &in asChild, int alState)
 	{	
 		if(alState == 1) //entered
@@ -2860,6 +3057,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_hallwayNorth_A(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == -1) //exited
@@ -2874,6 +3072,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 
+	//player tracking
 	bool TriggerArea_hallwayNorth_B(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == -1) //exited
@@ -2888,6 +3087,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 	
+	//player tracking
 	bool TriggerArea_bulkhead_4_A(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == -1) //exited
@@ -2902,6 +3102,7 @@ class cScrMap : iScrMap
 		return true;
 	}
 
+	//player tracking
 	bool TriggerArea_bulkhead_4_B(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(alState == -1) //exited
@@ -2915,17 +3116,17 @@ class cScrMap : iScrMap
 		m_playerMovedNotif();
 		return true;
 	}
-	
-	
+	//it just works, doesnt it :3
 
 	
-	
+	//pickup final elevator chip (unupdated version)
 	void elevator_Chip_OnPlayerInteract(const tString &in asEntity)
 	{
 		hasChipBeenAquired = true;
 		//PreloadMap();
 	}
 	
+	//pickup final elevator chip (updated version)
 	void elevator_Chip_updated_OnPlayerInteract(const tString &in asEntity)
 	{
 		hasChipBeenUpdated = true;
@@ -2936,153 +3137,315 @@ class cScrMap : iScrMap
 	
 	///////////////////////
 	//ipad button callbacks
+	//i did it this way cause its easy and I can add special interactions in the future easily
+	//each callback checks and stuns a monster and creates a timer to turn off the lights
 	
 	bool map_element_1()
 	{
 		cLux_AddDebugMessage("map_element_1()");
+		m_stunCheck(100);
+		Map_AddTimer("timer_element_1", fStunDuration, "timer_element_1");
+		
+		
 		return true;
+	}
+	
+	void timer_element_1(const tString &in asTimer)
+	{
+		
 	}
 	
 	bool map_element_2()
 	{
 		cLux_AddDebugMessage("map_element_2()");
+		m_stunCheck(8);
+		Map_AddTimer("timer_element_2", fStunDuration, "timer_element_2");
+		Lamp_SetLit("flicker_2_*",true,true);
+		Lamp_SetFlickerActive("flicker_2_*",true);
 		return true;
+	}
+	
+	void timer_element_2(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_2_*",false,true);
+		Lamp_SetFlickerActive("flicker_2_*",false);
 	}
 	
 	bool map_element_3()
 	{
 		cLux_AddDebugMessage("map_element_3()");
+		m_stunCheck(7);
+		Map_AddTimer("timer_element_3", fStunDuration, "timer_element_3");
+		Lamp_SetLit("flicker_3",true,true);
+		Lamp_SetFlickerActive("flicker_3",true);
 		return true;
+	}
+	
+	void timer_element_3(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_3",false,true);
+		Lamp_SetFlickerActive("flicker_3",false);
 	}
 	
 	bool map_element_4()
 	{
 		cLux_AddDebugMessage("map_element_4()");
+		m_stunCheck(6);
+		Map_AddTimer("timer_element_4", fStunDuration, "timer_element_4");
+		Lamp_SetLit("flicker_4_*",true,true);
+		Lamp_SetFlickerActive("flicker_4_*",true);
 		return true;
+	}
+	
+	void timer_element_4(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_4_*",false,true);
+		Lamp_SetFlickerActive("flicker_4_*",false);
 	}
 	
 	bool map_element_5()
 	{
 		cLux_AddDebugMessage("map_element_5()");
+		m_stunCheck(2);
+		Map_AddTimer("timer_element_5", fStunDuration, "timer_element_5");
+		Lamp_SetLit("flicker_5_*",true,true);
+		Lamp_SetFlickerActive("flicker_5_*",true);
 		return true;
+	}
+	
+	void timer_element_5(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_5_*",false,true);
+		Lamp_SetFlickerActive("flicker_5_*",false);
 	}
 	
 	bool map_element_6()
 	{
 		cLux_AddDebugMessage("map_element_6()");
+		m_stunCheck(1);
+		Map_AddTimer("timer_element_6", fStunDuration, "timer_element_6");
+		Lamp_SetLit("flicker_6",true,true);
+		Lamp_SetFlickerActive("flicker_6",true);
 		return true;
+	}
+	
+	void timer_element_6(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_6",false,true);
+		Lamp_SetFlickerActive("flicker_6",false);
 	}
 	
 	bool map_element_7()
 	{
 		cLux_AddDebugMessage("map_element_7()");
+		m_stunCheck(-10000);//lobby area 2
+		Map_AddTimer("timer_element_7", fStunDuration, "timer_element_7");
+		
+		Lamp_SetLit("flicker_7_*",true,true);
+		Lamp_SetFlickerActive("flicker_7_*",true);
 		return true;
+	}
+	
+	void timer_element_7(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_7_*",false,true);
+		Lamp_SetFlickerActive("flicker_7_*",false);
 	}
 	
 	bool map_element_8()
 	{
 		cLux_AddDebugMessage("map_element_8()");
+		m_stunCheck(105);
+		Map_AddTimer("timer_element_8", fStunDuration, "timer_element_8");
 		return true;
+	}
+	
+	void timer_element_8(const tString &in asTimer)
+	{
 	}
 	
 	bool map_element_9()
 	{
 		cLux_AddDebugMessage("map_element_9()");
+		m_stunCheck(3);
+		Map_AddTimer("timer_element_9", fStunDuration, "timer_element_9");
+		Lamp_SetLit("flicker_9_*",true,true);
+		Lamp_SetFlickerActive("flicker_9_*",true);
 		return true;
+	}
+	
+	void timer_element_9(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_9_*",false,true);
+		Lamp_SetFlickerActive("flicker_9_*",false);
 	}
 	
 	bool map_element_10()
 	{
 		cLux_AddDebugMessage("map_element_10()");
+		m_stunCheck(5);
+		Map_AddTimer("timer_element_10", fStunDuration, "timer_element_10");
+		Lamp_SetLit("flicker_10_*",true,true);
+		Lamp_SetFlickerActive("flicker_10_*",true);
 		return true;
+	}
+	
+	void timer_element_10(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_10_*",false,true);
+		Lamp_SetFlickerActive("flicker_10_*",false);
 	}
 	
 	bool map_element_11()//lightswitch room 
 	{
-		Button_SetLocked("area4_lab_door_button_*",false,true);
-		Map_AddTimer("Timer_map_element_11", LightPeekLength, "Timer_map_element_11");
-		Sound_CreateAtEntity("11_sfx","Entities_Station/doors/tau/buttons/unlock","area4_lab_door",0.0f, false, 1.0f);
 		cLux_AddDebugMessage("map_element_11()");
+		m_stunCheck(-10000);//TODO: can the monster even be in here?
+		Map_AddTimer("timer_element_11", fStunDuration, "timer_element_11");//lighting effect
+		if(bLightswitchActive)
+		{
+			Lamp_SetLit("cable_lamp_*",true,true);
+			Button_SetLocked("area4_lab_door_button_*",false,true);
+			Map_AddTimer("Timer_map_element_11", LightPeekLength, "Timer_map_element_11");//gameplay logic
+			Sound_CreateAtEntity("11_sfx","Entities_Station/doors/tau/buttons/unlock","area4_lab_door",0.0f, false, 1.0f);
+		}
 		return true;
 	}
 	
+	//only if lightswitch has been pressed
 	void Timer_map_element_11(const tString &in asTimer)
 	{
 		Button_SetLocked("area4_lab_door_button_*",true,true);
 		SlideDoor_SetClosed("area4_lab_door",true,false);
+		
+		Lamp_SetLit("cable_lamp_*",false,true);
 		Sound_CreateAtEntity("11_sfx","Entities_Station/doors/tau/buttons/locked","area4_lab_door",0.0f, false, 1.0f);
+	}
+	
+	void timer_element_11(const tString &in asTimer)
+	{
+		
 	}
 	
 	bool map_element_12()
 	{
 		cLux_AddDebugMessage("map_element_12()");
+		m_stunCheck(102);
+		Map_AddTimer("timer_element_12", fStunDuration, "timer_element_12");
 		return true;
+	}
+	
+	void timer_element_12(const tString &in asTimer)
+	{
 	}
 	
 	bool map_element_13()
 	{
 		cLux_AddDebugMessage("map_element_13()");
+		m_stunCheck(10);
+		Map_AddTimer("timer_element_13", fStunDuration, "timer_element_13");
+		Lamp_SetLit("flicker_13_*",true,true);
+		Lamp_SetFlickerActive("flicker_13_*",true);
 		return true;
+	}
+	
+	void timer_element_13(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_13_*",false,true);
+		Lamp_SetFlickerActive("flicker_13_*",false);
 	}
 	
 	bool map_element_14()
 	{
 		cLux_AddDebugMessage("map_element_14()");
+		m_stunCheck(-10000);//bathroom
+		Map_AddTimer("timer_element_14", fStunDuration, "timer_element_14");
+		Lamp_SetFlickerActive("flicker_broom*",true);
 		return true;
 	}
 	
+	void timer_element_14(const tString &in asTimer)
+	{
+		Lamp_SetFlickerActive("flicker_broom*",false);
+	}
+	
+	//bulkhead
 	bool map_element_15()
 	{
 		cLux_AddDebugMessage("map_element_15()");
+		m_stunCheck(103);
+		Map_AddTimer("timer_element_15", fStunDuration, "timer_element_15");
 		return true;
 	}
 	
+	void timer_element_15(const tString &in asTimer)
+	{
+	}
+	
+	//L shaped hallway
 	bool map_element_16()
 	{
 		cLux_AddDebugMessage("map_element_16()");
+		m_stunCheck(101);
+		Map_AddTimer("timer_element_16", fStunDuration, "timer_element_16");
 		return true;
+	}
+	
+	void timer_element_16(const tString &in asTimer)
+	{
 	}
 	
 	bool map_element_17()
 	{
 		cLux_AddDebugMessage("map_element_17()");
+		m_stunCheck(-10000);//security checkpoint
+		Map_AddTimer("timer_element_17", fStunDuration, "timer_element_17");
+		
+		Lamp_SetLit("flicker_1_*",true,true);
+		Lamp_SetFlickerActive("flicker_1_*",true);
+		
 		return true;
 	}
+	
+	void timer_element_17(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_1_*",false,true);
+		Lamp_SetFlickerActive("flicker_1_*",false);
+	}
+	
 	
 	bool map_element_18()
 	{
 		cLux_AddDebugMessage("map_element_18()");
+		m_stunCheck(-10000);//atrium
+		Map_AddTimer("timer_element_18", fStunDuration, "timer_element_18");
+		Lamp_SetLit("flicker_18_*",true,true);
+		Lamp_SetFlickerActive("flicker_18_*",true);
 		return true;
+	}
+	
+	void timer_element_18(const tString &in asTimer)
+	{
+		Lamp_SetLit("flicker_18_*",false,true);
+		Lamp_SetFlickerActive("flicker_18_*",false);
 	}
 	
 	bool map_element_19()
 	{
 		cLux_AddDebugMessage("map_element_19()");
+		m_stunCheck(104);
+		Map_AddTimer("timer_element_19", fStunDuration, "timer_element_19");
 		return true;
 	}
+	
+	void timer_element_19(const tString &in asTimer)
+	{
+	}
 
-
-	
-	
-	
-	
-
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  TERMINALS  ///////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
-	
 //---------------------------------------------------
 	 
-		 /*Put any variables that are only used Terminal here.*/
-			int MainTerminalActivated = 0;
-		 //-------------------------------------------------------
-	 
-		 /*Put any functions that are only used Terminal here.*/
+	int MainTerminalActivated = 0;
 		 
- //-------------------------------------------------------	 
+//---------------------------------------------------
 	void terminal_map_1_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
 		ImGui_DoImage(cImGuiGfx("zeppelin_player", eImGuiGfx_Texture), ImGui_NrmPosGroup(.24, .31, 1), ImGui_NrmSizeGroup(.2));
@@ -3109,6 +3472,7 @@ class cScrMap : iScrMap
 		Player_SetFlashlightDisabled(true);
 	}
 	
+	//hint area for ipad controls
 	bool TriggerArea_ipadhint(const tString &in asParent, const tString &in asChild, int alState)
 	{
 		if(bPickedUpIPAD)
@@ -3126,153 +3490,160 @@ class cScrMap : iScrMap
 		}
 		bInIPAD = true;
 		
-			//ImGui_SetTransCategory("02_06_theta_tunnels");
-			
-			
-			cStationGui_LightAppSettings settings;
-			settings.mMapBackground = cImGuiGfx("datapad_map_full", eImGuiGfx_Texture);
-			settings.mfSizeMul = 1.0;
-			settings.mlTimerLength = LightPeekLength;
-			settings.mvPosOffset = cVector3f(0, 0.1, 0);
-			
-			{			
-				cLightAppButton lock = CreateLightButton("map_element_1", "map_element_1");
-				lock.msFocusText = "LCA_1";
-				lock.mvNrmPos = cVector3f(0.1, 0.1, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
+			if(!bIpadOOR) // if we are in range
 			{
-				cLightAppButton lock = CreateLightButton("map_element_2", "map_element_2");
-				lock.msFocusText = "LCA_2";
-				lock.mvNrmPos = cVector3f(0.2, 0.2, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
+				//ImGui_SetTransCategory("02_06_theta_tunnels");
+				
+				
+				cStationGui_LightAppSettings settings;
+				settings.mMapBackground = cImGuiGfx("datapad_map_full", eImGuiGfx_Texture);
+				settings.mfSizeMul = 1.0;
+				settings.mlTimerLength = LightPeekLength;
+				settings.mvPosOffset = cVector3f(0, 0.1, 0);
+				
+				{			
+					cLightAppButton lock = CreateLightButton("map_element_1", "map_element_1");
+					lock.msFocusText = "LCA_1";
+					lock.mvNrmPos = cVector3f(0.1, 0.1, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_2", "map_element_2");
+					lock.msFocusText = "LCA_2";
+					lock.mvNrmPos = cVector3f(0.2, 0.2, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_3", "map_element_3");
+					lock.msFocusText = "LCA_3";
+					lock.mvNrmPos = cVector3f(0.3, 0.3, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_4", "map_element_4");
+					lock.msFocusText = "LCA_4";
+					lock.mvNrmPos = cVector3f(0.4, 0.4, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_5", "map_element_5");
+					lock.msFocusText = "LCA_5";
+					lock.mvNrmPos = cVector3f(0.5, 0.5, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_6", "map_element_6");
+					lock.msFocusText = "LCA_6";
+					lock.mvNrmPos = cVector3f(0.6, 0.6, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_7", "map_element_7");
+					lock.msFocusText = "LCA_7";
+					lock.mvNrmPos = cVector3f(0.7, 0.7, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_8", "map_element_8");
+					lock.msFocusText = "LCA_8";
+					lock.mvNrmPos = cVector3f(0.8, 0.8, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_9", "map_element_9");
+					lock.msFocusText = "LCA_9";
+					lock.mvNrmPos = cVector3f(0.9, 0.9, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_10", "map_element_10");
+					lock.msFocusText = "LCA_10";
+					lock.mvNrmPos = cVector3f(0.91, 0.91, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_11", "map_element_11");
+					lock.msFocusText = "LCA_11";
+					lock.mvNrmPos = cVector3f(0.92, 0.92, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_12", "map_element_12");
+					lock.msFocusText = "LCA_12";
+					lock.mvNrmPos = cVector3f(0.93, 0.93, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_13", "map_element_13");
+					lock.msFocusText = "LCA_13";
+					lock.mvNrmPos = cVector3f(0.94, 0.94, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_14", "map_element_14");
+					lock.msFocusText = "LCA_14";
+					lock.mvNrmPos = cVector3f(0.95, 0.95, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_15", "map_element_15");
+					lock.msFocusText = "LCA_15";
+					lock.mvNrmPos = cVector3f(0.96, 0.96, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_16", "map_element_16");
+					lock.msFocusText = "LCA_16";
+					lock.mvNrmPos = cVector3f(0.97, 0.97, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_17", "map_element_17");
+					lock.msFocusText = "LCA_17";
+					lock.mvNrmPos = cVector3f(0.98, 0.98, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_18", "map_element_18");
+					lock.msFocusText = "LCA_18";
+					lock.mvNrmPos = cVector3f(0.99, 0.99, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
+				
+				{
+					cLightAppButton lock = CreateLightButton("map_element_19", "map_element_19");
+					lock.msFocusText = "LCA_19";
+					lock.mvNrmPos = cVector3f(0.995, 0.995, 6);
+					StationGui_LightApp_AddLock(lock);
+				}
 			
+				
+				
+				int lDoorCount = gvDoorControlButtons.length();
+				
+				StationGui_LightApp(settings);
+			}
+			else//out of range
 			{
-				cLightAppButton lock = CreateLightButton("map_element_3", "map_element_3");
-				lock.msFocusText = "LCA_3";
-				lock.mvNrmPos = cVector3f(0.3, 0.3, 6);
-				StationGui_LightApp_AddLock(lock);
+				
 			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_4", "map_element_4");
-				lock.msFocusText = "LCA_4";
-				lock.mvNrmPos = cVector3f(0.4, 0.4, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_5", "map_element_5");
-				lock.msFocusText = "LCA_5";
-				lock.mvNrmPos = cVector3f(0.5, 0.5, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_6", "map_element_6");
-				lock.msFocusText = "LCA_6";
-				lock.mvNrmPos = cVector3f(0.6, 0.6, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_7", "map_element_7");
-				lock.msFocusText = "LCA_7";
-				lock.mvNrmPos = cVector3f(0.7, 0.7, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_8", "map_element_8");
-				lock.msFocusText = "LCA_8";
-				lock.mvNrmPos = cVector3f(0.8, 0.8, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_9", "map_element_9");
-				lock.msFocusText = "LCA_9";
-				lock.mvNrmPos = cVector3f(0.9, 0.9, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_10", "map_element_10");
-				lock.msFocusText = "LCA_10";
-				lock.mvNrmPos = cVector3f(0.91, 0.91, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_11", "map_element_11");
-				lock.msFocusText = "LCA_11";
-				lock.mvNrmPos = cVector3f(0.92, 0.92, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_12", "map_element_12");
-				lock.msFocusText = "LCA_12";
-				lock.mvNrmPos = cVector3f(0.93, 0.93, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_13", "map_element_13");
-				lock.msFocusText = "LCA_13";
-				lock.mvNrmPos = cVector3f(0.94, 0.94, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_14", "map_element_14");
-				lock.msFocusText = "LCA_14";
-				lock.mvNrmPos = cVector3f(0.95, 0.95, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_15", "map_element_15");
-				lock.msFocusText = "LCA_15";
-				lock.mvNrmPos = cVector3f(0.96, 0.96, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_16", "map_element_16");
-				lock.msFocusText = "LCA_16";
-				lock.mvNrmPos = cVector3f(0.97, 0.97, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_17", "map_element_17");
-				lock.msFocusText = "LCA_17";
-				lock.mvNrmPos = cVector3f(0.98, 0.98, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_18", "map_element_18");
-				lock.msFocusText = "LCA_18";
-				lock.mvNrmPos = cVector3f(0.99, 0.99, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-			
-			{
-				cLightAppButton lock = CreateLightButton("map_element_19", "map_element_19");
-				lock.msFocusText = "LCA_19";
-				lock.mvNrmPos = cVector3f(0.995, 0.995, 6);
-				StationGui_LightApp_AddLock(lock);
-			}
-		
-			
-			
-			int lDoorCount = gvDoorControlButtons.length();
-			
-			StationGui_LightApp(settings);
 		}
 		
 		cLightAppButton CreateLightButton(const tString &in asName, const tString &in asGfx)
@@ -3288,11 +3659,43 @@ class cScrMap : iScrMap
 			//lightOverrideTime
 		}
 		
-
-		
 	void ipad_GuiLeave(const tString&in asEntityName)
 	{
 		bInIPAD = false;
+	}
+
+	tString gsKeypadCode = "8429";
+	bool bKeypad_unlocked = false;
+
+	void keypad_OnGui(const tString&in asEntityName, float afTimeStep)
+	{
+		ImGui_SetTransCategory("Terminal_keypad");
+		StationGuiBG_Scanlines();
+
+		//if ok was pressed
+		if(StationGui_Numpad("ComputerApp_Header", 4, 0.2f, ImGui_NrmPos(cVector3f(0.125, 0.1, 1.5)), ImGui_NrmSizeGroup(cVector2f(0.75, 0.675))))
+		{
+			if(StationGui_GetNumpadInput() == gsKeypadCode && !bKeypad_unlocked)
+			{
+				bKeypad_unlocked = true;
+				Terminal_SetAllowInteraction(asEntityName, false);
+				Player_ExitTerminal();
+				Map_AddTimer("timer_keypad_unlock", 1.0f, "timer_keypad_unlock");
+				Sound_CreateAtEntity("keypad_sfx", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_granted", asEntityName,  0.0f, false, 2.0f);
+			}
+			else
+			{
+				StationGui_SetNumpadInput("");
+				Sound_CreateAtEntity("keypad_sfx", "Entities_Station/tech/terminal_beeps/pathOS_comp/pathOS_comp_negative", asEntityName, 0.0f, false, 2.0f);
+			}
+		}
+
+	}
+
+	void timer_keypad_unlock(const tString &in asTimer)
+	{
+		Button_SetLocked("area4_control_door_button_2",false,true);
+		Sound_CreateAtEntity("keypad_sfx", "Entities_Station/doors/tau/buttons/unlock", "area4_control_door_button_2",  0.0f, false, 2.0f);
 	}
 	
 	
@@ -3397,6 +3800,7 @@ class cScrMap : iScrMap
 			Sound_CreateAtEntity("sfx_terminal_chipLatch", "Entities_Station/object/memchip/remove", "elevator_Chip_updated", 0.0f, false, 0.85f);
 			Entity_SetInteractionDisabled("elevator_Chip_updated",false);
 			Tool_SetHighlightActive("elevator_Chip_updated",true);
+			PreloadMap();
 		}
 		ImGui_DoWindowEnd();
 		
@@ -3629,8 +4033,6 @@ class cScrMap : iScrMap
 			ImGui_AddTimer("beginTimer",cMath_RandRectf(1, 1));
 		}
 		
-		
-		
 		if(ImGui_TimerOver("beginTimer"))
 		{
 			showStatic = true;
@@ -3648,8 +4050,6 @@ class cScrMap : iScrMap
 				ImGui_AddTimer("beginTimer",cMath_RandRectl(6,20));//off time
 			}
 			
-			
-			
 			showStatic = false;
 		}
 		
@@ -3663,16 +4063,20 @@ class cScrMap : iScrMap
 				{
 				case 1:
 					ImGui_DoImage(cImGuiGfx("death_image_16",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));
-					Sound_CreateAtEntity("sfx_terminal_welcome", "03_02_omicron_inside/SFX/suit_diagnostics/suit_error_found", asEntityName, 0.0f, false, 1.0f); 
+					Sound_CreateAtEntity("sfx_terminal_welcome", "02_05_theta/sweeteners/tv_scare_random", asEntityName, 0.0f, false, 0.7f); 
 					break;
 				case 2:
 					ImGui_DoImage(cImGuiGfx("death_image_20",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));
-					Sound_CreateAtEntity("sfx_terminal_welcome", "02_05_theta/amb/spots/tiny_spark", asEntityName, 0.0f, false, 1.0f);
+					Sound_CreateAtEntity("sfx_terminal_welcome", "02_05_theta/sweeteners/tv_scare_random", asEntityName, 0.0f, false, 0.7f); 
 					break;
 				case 3:
-					ImGui_DoImage(cImGuiGfx("death_image_alt_16",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+					ImGui_DoImage(cImGuiGfx("death_image_alt_16",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));
+					Sound_CreateAtEntity("sfx_terminal_welcome", "02_05_theta/sweeteners/tv_scare_random", asEntityName, 0.0f, false, 0.7f); 
+					break;
 				case 4:
-					ImGui_DoImage(cImGuiGfx("death_image_25",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
+					ImGui_DoImage(cImGuiGfx("death_image_25",eImGuiGfx_Texture), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));
+					Sound_CreateAtEntity("sfx_terminal_welcome", "02_05_theta/sweeteners/tv_scare_random", asEntityName, 0.0f, false, 0.7f); 
+					break;
 				case 5:
 					ImGui_DoImage(cImGuiGfx("leechgibberish_0"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
 				case 6:
@@ -3687,9 +4091,8 @@ class cScrMap : iScrMap
 					ImGui_DoImage(cImGuiGfx("leechgibberish_5"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(1, 1)));break;
 				default:
 					ImGui_DoImage(cImGuiGfx("static_1"), ImGui_NrmPos(cVector3f(0, 0, 2)), ImGui_NrmSize(cVector2f(2, 2)));
-					Sound_CreateAtEntity("sfx_terminal_welcome", "Entities_Station/object/upsilon_transformer/spark", asEntityName, 0.0f, false, 0.3f);
+					Sound_CreateAtEntity("sfx_terminal_welcome", "03_02_omicron_inside/SFX/ross_message", asEntityName, 0.0f, false, 0.7f);
 					break;
-					
 				}
 				
 				
@@ -3771,8 +4174,10 @@ class cScrMap : iScrMap
 					Player_ExitTerminal();
 					Entity_SetActive("climbArea_hatch_shortcut_hallway",true);
 					Button_SetLocked("hatch_hallway_button_2",false,true);
+					Lamp_SetLit("fluorescent_wall_small_nospot_9",true,true);
+					Lamp_SetLit("fluorescent_wall_small_nospot_10",true,true);
 					Map_AddTimer("_guiSparkFX_Timer", 0.67f, "_guiSparkFX_Timer");
-					
+					crawlspace_power_ind();
 					
 			}
 			ImGui_SetModUseInput(true);
@@ -3802,19 +4207,12 @@ class cScrMap : iScrMap
 		}
 		
 	}
-	
-	
-					
 				
 	void _guiSparkFX_Timer(const tString &in asTimer)
 	{
 		Sound_CreateAtEntity("hatch_terminal_welcome", "01_02_upsilon_inside_02/sfx/com_room_wau_sparks", "crawlspace_big", 0.0f, false, 1.0f); 
 	}
 
-
-
-
-	
 	int giberish = 0;
 	tString gib = "";
 	void display_locked_OnGui(const tString&in asEntityName, float afTimeStep)
@@ -3863,7 +4261,9 @@ class cScrMap : iScrMap
 			
 		ImGui_DoWindowEnd();
 	}
+
  //-------------------------------------------------------
+
 	void display_tunnel_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
 		ImGui_SetTransCategory("Display");
@@ -4246,21 +4646,20 @@ class cScrMap : iScrMap
 		
 					
 
-					
+			//if you delete this is breaks
 				bBackButton = false;
 				break;
             }
             StationGui_BackButton(bBackButton);
 	}
-	
-	
-	
+
+	void panel_airlock_leave_OnGui(const tString&in asEntityName, float afTimeStep)
+	{}
 	
 	bool LampToggle = false;
 	bool terminalOnce = false;
 	float aSinFeeder2 = 0.0f;
 	float aSinFeederSlow2 = 0.0f;
-	
 	
 	//first interactible terminal
 	void security_office_terminal(const tString&in asEntityName, float afTimeStep)
@@ -4452,7 +4851,7 @@ class cScrMap : iScrMap
 	
 	void monitor_theta_resetRoom_OnGui(const tString&in asEntityName, float afTimeStep)
 	{
-			ImGui_SetTransCategory("Terminal_ResetRoom");
+			ImGui_SetTransCategory("Terminal_Reset");
 			StationGuiBG_Scanlines();
 
 			if (ImGui_GetStateBool("Unlocked",false) == false)
@@ -4466,14 +4865,13 @@ class cScrMap : iScrMap
 			return;
 			}
 			
-		
-			
 			int lActiveApp = StationGui_GetActiveApp(eBunkerTerminalApp_MainMenu);
 			bool bBackButton = true;
 			switch(lActiveApp)
 			{
 				case eBunkerTerminalApp_MainMenu:
-				StationGui_AddApp("reset_1", false, true);
+				ImGui_SetTransCategory("Terminal_Reset");
+				StationGui_AddApp("Terminal_Reset", false, true);
 				StationGui_AddApp("reset_Messages", true, eBunkerTerminalApp_Messages);
 				StationGui_AddApp("reset_2",false, true);
 				StationGui_MainMenu();
@@ -4482,6 +4880,7 @@ class cScrMap : iScrMap
 				
 				
 				case eBunkerTerminalApp_Messages:
+				ImGui_SetTransCategory("Terminal_med");
 				Depth_ImGui_AddMail("emailMedName", "emailMed", "emailMedSender", "emailMedSender", eMailAppEntryType_Inbox);
 				Depth_ImGui_AddMail("email_general_title", "email_general_body", "email_general_sender", "email_general_sender", eMailAppEntryType_Inbox);
 				Depth_ImGui_AddMail("emailMedName1", "emailMed1", "emailMedSender1", "emailMedSender1", eMailAppEntryType_Sent);
@@ -4508,77 +4907,242 @@ class cScrMap : iScrMap
 		}
 	}
 
+	tString msCartDoor = "Tram_door";
+	int mlCartDoorStep = 0;
+
 	cSequenceStatesData seqIntro;
 		void SeqIntro(const tString &in asTimer)
 		{
 			Sequence_Begin("SeqIntro", seqIntro);
-				if(Sequence_DoStepAndWait(3.0f))
+
+				if(Sequence_DoStepAndWait(0.8f))
 				{
-					Player_SetLookSpeedMul(0.125f);
-					Player_SetMoveSpeedMul(0);
+					cLux_AddDebugMessage("SeqIntro -- 1 - play music");
+					Sound_CreateAtEntity("fx","01_01_upsilon_awake/sfx/wake_up/wake_up_event","Player",2.0f, false);
+					Music_Stop(0.1f,eMusicPrio_BgAmb);
+					Music_Stop(0.1f,eMusicPrio_SceneAmb);
+					Player_SetLookSpeedMul(0.025f);
+					Player_SetMoveSpeedMul(0.01);
+					Player_FadeFOVMulTo(3.0f,0.0f);
 					CameraAnimationNode_SetAutoMove("AbyssWakeUpAnim_1", 0.5);
 				}
-				
-				else if(Sequence_DoStepAndWait(8.0f))
+
+				else if(Sequence_DoStepAndWait(2.2f))
 				{
-					cLux_AddDebugMessage("Fade in");
+					cLux_AddDebugMessage("SeqIntro -- 2 - play move sound");
+					Sound_CreateAtEntity("WakeUp","00_05_apartment2/SFX/bed_awaken","Player",0.0f, false);
+				}
+				
+				else if(Sequence_DoStepAndWait(0.5f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- 3 - Fade In");
 					Sound_FadeGlobalVolume(1.0f, 8.0f, eSoundEntryType_WorldAll);
 					Sound_FadeGlobalVolume(1.0f, 8.0f, eSoundEntryType_GuiWorld);
 					
 					Effect_Fade_In(8.0f);
-					Sound_CreateAtEntity("WakeUp","00_05_apartment2/SFX/bed_awaken","Player",0,false);
+					Player_FadeFOVMulTo(1.0f,10.0f);
 					CameraAnimation_Begin("AbyssWakeUpAnim", "", true);
-					Music_Play("01_01_afterflashback",1.0f,false,eMusicPrio_BigEvent);
 				}
-				
-				else if(Sequence_DoStepAndWait(4.0f))
+
+				else if(Sequence_DoStepAndWait(1.25f))
 				{
-					Player_SetLookSpeedMul(0.65f);
-					Player_SetMoveSpeedMul(1);
-					Effect_ImageTrail_FadeOut(imagetraideID, 25.0f);
-					Entity_SetActive("tram_hissd",true);
-					Sound_Play("tram_hissd",0.0f,false);
+					cLux_AddDebugMessage("SeqIntro -- 4 - breath");
+					Player_FadeLookSpeedMulTo(0.1f,1.0f);
+					Sound_CreateAtEntity("player_fx", "Player/breaths/air_fear", "Player", 0, false, 3.0f);
 				}
-				
+
+				else if(Sequence_DoStepAndWait(1.25f))
+				{
+					Player_SetMoveSpeedMul(0.1f);
+					cLux_AddDebugMessage("SeqIntro -- 5 - breath");
+					Sound_CreateAtEntity("player_fx", "Player/breaths/air_fear", "Player", 0, false, 3.0f);
+				}
+
+				else if(Sequence_DoStepAndWait(1.0f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- 6 - breath");
+					Sound_CreateAtEntity("player_fx", "Player/breaths/air_fear", "Player", 0, false, 3.0f);
+				}
+
 				else if(Sequence_DoStepAndWait(2.0f))
 				{
+					cLux_AddDebugMessage("SeqIntro -- 7 - trail fade out");
+					Player_FadeLookSpeedMulTo(0.25f,4.0f);
+					Player_FadeMoveSpeedMulTo(0.2f, 2.0f);
+					Effect_ImageTrail_FadeOut(imagetraideID, 40.0f);
+
+				}
+				else if(Sequence_DoStepAndWait(1.0f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- 8 - stop fx :3");
+					Sound_Stop("fx", 0.25f);
+				}
+
+				else if(Sequence_DoStepAndWait(2.0f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- 9 - enable hud");
+					Player_FadeMoveSpeedMulTo(0.4f, 2.0f);
+					Player_FadeLookSpeedMulTo(0.6f,8.0f);
 					PauseMenu_Enabled(true);
 					Player_ShowCrossHairIcons(true);
 					Player_SetJumpDisabled(false);
-					Player_SetLookSpeedMul(1.0f);
-					Entity_SetActive("tram_dooropen",true);
-					Sound_Play("tram_dooropen",0.0f,false);
+					//open tram door
+					mlCartDoorStep = 0;
+					TimerCartDoorOpen("door_timer_1");
+					Map_AddTimer("door_timer_2", 0.5, "TimerCartDoorOpen");
+					Map_AddTimer("door_timer_3", 1.95, "TimerCartDoorOpen");
+					Map_AddTimer("door_timer_4", 2.5, "TimerCartDoorOpen");		
+					Sound_CreateAtEntity("train_door_open_loop", "Entities_Station/object/train/door/open_motion", msCartDoor, 0, false);
+					Sound_CreateAtEntity("train_door_open_start", "Entities_Station/object/train/door/open_start", msCartDoor, 0, false);
 				}
 				
-				else if(Sequence_DoStepAndWait(1.0f))
+				else if(Sequence_DoStepAndWait(1.6f))
 				{
-					Sound_CreateAtEntity("sound_tram_door_jingle", "02_05_theta/sweeteners/server_lever/start_beep", "Tram_door", 0.0f, false, 5.0f);
-					Music_Play("01_01_awakendrone", 0.7f, false, eMusicPrio_SceneAmb);
+					cLux_AddDebugMessage("SeqIntro -- 10 - lamps on");
+					Lamp_SetLit("subway_lamp_*",true,true);
 				}
-				else if(Sequence_DoStepAndWait(1.0f))
+
+				else if(Sequence_DoStepAndWait(0.2f))
 				{
+					cLux_AddDebugMessage("SeqIntro -- 11 tram door opem");
 					PhysicsSlideDoor_AutoMoveToState("Tram_door",1);
-					Sound_CreateAtEntity("sound_tram_door_move", "Entities_Station/doors/tunnel_hatch/tunnel_hatch_open", "Tram_door", 0.0f, false, 1.0f);
+					Music_PlayExt("01_01_thick_air", true, 2.5f, 1.0f, 10.0f, 0.0f, eMusicPrio_BgAmb, true);
 				}
+				
+
+				else if(Sequence_DoStepAndWait(1.125f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- floorlamp");
+					Player_FadeMoveSpeedMulTo(0.6f, 2.0f);
+					Lamp_SetLit("lamp_floor_subway_row_1*",true,true);
+				}
+
+				else if(Sequence_DoStepAndWait(1.125f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- floorlamp");
+					Lamp_SetLit("lamp_floor_subway_row_2*",true,true);
+				}
+
+				else if(Sequence_DoStepAndWait(1.125f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- floorlamp");
+					Lamp_SetLit("lamp_floor_subway_row_3*",true,true);
+				}
+
+				else if(Sequence_DoStepAndWait(1.125f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- floorlamp");
+					Lamp_SetLit("lamp_floor_subway_row_4*",true,true);
+				}
+
+				else if(Sequence_DoStepAndWait(2.125f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- floorlamp");
+					Lamp_SetLit("lamp_floor_subway_row_5*",true,true);
+				}
+
+				else if(Sequence_DoStepAndWait(0.666f))
+				{
+
+					Lamp_SetFlickerActive("subway_lamp_1",false);
+				}
+
+				else if(Sequence_DoStepAndWait(1.1f))
+				{
+					Lamp_SetFlickerActive("subway_lamp_3",false);
+				}
+
+				else if(Sequence_DoStepAndWait(0.2f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- 10");
+					Lamp_SetFlickerActive("subway_lamp_4",false);
+				}
+
+				else if(Sequence_DoStepAndWait(1.1f))
+				{
+					cLux_AddDebugMessage("SeqIntro -- 11");
+					Lamp_SetFlickerActive("subway_lamp_2",false);
+					Player_FadeLookSpeedMulTo(1.0f,1.0f);
+					Player_FadeMoveSpeedMulTo(0.7f, 2.0f);
+				}
+
 				
 				
 			Sequence_End();
 		}
 
+		void TimerCartDoorOpen(const tString &in asTimer)
+		{
+			mlCartDoorStep++;
+			
+			switch (mlCartDoorStep)
+			{
+				case 1:
+				Entity_PlayProcAnimation(msCartDoor, "Open", 0.5, false, 0);
+				break;
+				
+				case 2:
+				Prop_SetStaticPhysics(msCartDoor, false);
+				PhysicsSlideDoor_AutoMoveToState(msCartDoor, 1);
+				break;
+				
+				case 3:
+				Sound_CreateAtEntity("train_door_open_stop", "Entities_Station/object/train/door/open_stop", msCartDoor);
+				Sound_Stop("train_door_open_loop", 0.25f);
+				break;
+				
+				case 4:
+				cLux_AddDebugMessage("TimerCartDoorOpen");
+				Prop_SetStaticPhysics(msCartDoor, true);
+				break;
+			}
+		}
+
+		bool trigger_stairwell(const tString &in asParent, const tString &in asChild, int alState)
+		{
+			cLux_AddDebugMessage("slowdown");
+			Player_SetMoveSpeedMul(0.1f);
+			Player_SetLookSpeedMul(0.1f);
+			//(float afAmount,float afFadeInTime,float afStayTime,float afFadeOutTime)
+			imagetraideID = Effect_ImageTrail_Start(1.0, 1.0, 8, 2); 
+			Player_SetCrouching(true,false,false);
+			Player_SetCrouchActionDisabled(true);
+			Player_StartLookAt("TriggerArea_10", 1.0f, 2.0f, 1.0f);
+			Map_AddTimer("timer_stairwell",4.4f,"timer_stairwell");
+			Map_AddTimer("timer_stairwelllook",1.0f,"timer_stairwelllook");
+			Sound_CreateAtEntity("player_fx", "Player/reaction/air/hurt", "player", 0.0f, false, 0.7f);
+			return false;
+		}
+
+		void timer_stairwell(const tString &in asTimer)
+		{
+			Sound_CreateAtEntity("player_fx", "Player/breaths/air_fear", "Player", 0, false, 3.0f);
+			Player_FadeMoveSpeedMulTo(0.7,10.0f);
+			Player_FadeLookSpeedMulTo(1.0,6.0f);
+			Player_SetCrouchActionDisabled(false);
+		}
+
+		void timer_stairwelllook(const tString &in asTimer)
+		{
+			Player_StopLookAt(0.25f);
+		}
+
 		cSequenceStatesData mOfficeLightScare;
 		void OfficeLightScare(const tString &in asTimer)
 		{
-		
+			cLux_AddDebugMessage("OfficeLightScare -- START");
 			Sequence_Begin("OfficeLightScare", mOfficeLightScare);
 				
 				if (Sequence_DoStepAndWait(0.2f))
 				{
+					cLux_AddDebugMessage("OfficeLightScare -- 1");
 					Entity_SetActive("Sound_officescare",true);
 					Sound_Play("Sound_officescare",0.0f,false);
 				}
 				
 				if (Sequence_DoStepAndWait(3))
 				{
+					cLux_AddDebugMessage("OfficeLightScare -- 2");
 					Lamp_SetLit("Office_Bluelamp*",false,true);
 					Lamp_SetLit("office_lamps_ceiling_*",false,true);
 					Lamp_SetFlickerActive("Office_Bluelamp*",true);
@@ -4587,15 +5151,18 @@ class cScrMap : iScrMap
 				
 				else if (Sequence_DoStepAndWait(7))
 				{
+					cLux_AddDebugMessage("OfficeLightScare -- 3");
 					Lamp_SetLit("Office_Bluelamp*",true,true);
 					Lamp_SetLit("office_lamps_ceiling_*",true,true);
 				}
 				
 				else if (Sequence_DoStepAndWait(7))
 				{
+					cLux_AddDebugMessage("OfficeLightScare -- 4");
 					Lamp_SetFlickerActive("Office_Bluelamp*",false);
 					seqOfficeLights("");
 				}
+			cLux_AddDebugMessage("OfficeLightScare -- END");
 			Sequence_End();
 		}
 
@@ -4627,9 +5194,11 @@ class cScrMap : iScrMap
 		
 		bool TriggerArea_music_1(const tString &in asParent, const tString &in asChild, int alState)
 		{
-			Music_Play("01_01_enterdarkness", 0.2f, false, eMusicPrio_SceneAmb);
+			 
 			return false;
 		}
+
+		///seq -- tunnel lights
 		
 		bool trigger_tunnel_lights(const tString &in asParent, const tString &in asChild, int alState)
 		{
@@ -4641,6 +5210,7 @@ class cScrMap : iScrMap
 		void SeqTunnelLight(const tString &in asTimer)
 		{
 			float lampStepTime = 3.0f;
+			cLux_AddDebugMessage("SeqTunnelLight -- START");
 			Sequence_Begin("SeqTunnelLight", seqTunnelLight);
 			
 				if     (Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_1*" ,true,true);Sound_CreateAtEntity("tls01", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_1_1" , 0.0f, false, 3.0f);}
@@ -4650,7 +5220,8 @@ class cScrMap : iScrMap
 				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_5*" ,true,true);Sound_CreateAtEntity("tls02", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_5_1" , 0.0f, false, 3.0f);}
 				else if(Sequence_DoStepAndWait(lampStepTime)){Lamp_SetLit("tunnel_lamp_set_6*" ,true,true);Sound_CreateAtEntity("tls02", "level_amb_shared_interior/amb/sfx/detail/lamp/blink", "tunnel_lamp_set_6_1" , 0.0f, false, 3.0f);}
 				else if(Sequence_DoStepAndWait(0.7f)){Light_SetBrightness("tunnel_white_light_*",0.25f);Lamp_SetFlickerActive("tunnel_white_lamp_*",false);Sound_CreateAtEntity("billion", "Entities_Station/tech/plug/plug_in", "tunnel_white_light_7", 0.0f, false, 3.0f);}
-				
+			
+			cLux_AddDebugMessage("SeqTunnelLight -- END");
 			Sequence_End();
 		}
 		
