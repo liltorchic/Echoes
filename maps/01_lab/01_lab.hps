@@ -404,6 +404,7 @@ class cScrMap : iScrMap
 
 		// attach lights to move area in lab 1 (scanner fx)
 		Entity_AttachToEntity("spot_l1sfx_*","area_movelight","",true,false,false);
+		Lamp_SetLit("spot_l1sfx_*", false, true);
 		
 		//freezer lamps
 		Lamp_SetLit("freezer_lamp_green",false,true);		
@@ -938,7 +939,7 @@ class cScrMap : iScrMap
 	
 	bool L1R5t_onEnter(const tString &in asParent, const tString &in asChild, int alState)
 	{
-		Music_Play("NPC_flesher_notice1",0.6f, false, eMusicPrio_MinorEvent);
+		//Music_Play("NPC_flesher_notice1",0.6f, false, eMusicPrio_MinorEvent);
 		return false;
 	}
 	
@@ -984,7 +985,7 @@ class cScrMap : iScrMap
 	
 	bool L1R6_onEnter(const tString &in asParent, const tString &in asChild, int alState)
 	{
-		Music_Play("NPC_flesher_notice3",0.6f, false, eMusicPrio_MinorEvent);
+		//Music_Play("NPC_flesher_notice3",0.6f, false, eMusicPrio_MinorEvent);
 		return false;
 	}
 	
@@ -1019,6 +1020,7 @@ class cScrMap : iScrMap
 		{
 			rand =+ 10;
 		}
+
 		Map_AddTimer("timer_valleyLightScan", rand,"timer_valleyLightScan");
 		Map_AddTimer("timer_valleyLightScanEnable", rand - 0.5,"timer_valleyLightScanEnable");
 		
