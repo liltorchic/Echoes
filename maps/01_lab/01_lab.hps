@@ -497,7 +497,7 @@ class cScrMap : iScrMap
 		SlideDoor_SetOpenableByAgent("LabDoor_10", true);
 	}
 	
-	//puppet robot scare in power room
+	//robot scare in power room
 	void SetupMonsterPathNode()
 	{
 		for(int a = 1; a <= 212; a++)
@@ -1974,6 +1974,26 @@ class cScrMap : iScrMap
 		{
 			SlideDoor_SetClosed("cavedoor_4", true, false);
 		}
+		return false;
+	}
+
+	bool omnitool_OnPickUp(const tString &in asTool)
+	{
+		Entity_SetActive("TriggerArea_monsterreturn",true);
+		return true;
+	}
+
+	//TriggerArea_monsterreturn
+	bool player_return_spawn_monster(const tString &in asParent, const tString &in asChild, int alState)
+	{
+		Entity_SetActive("maintenance_infected_1",true);
+		Pathfinder_Track_Clear("maintenance_infected_1");
+		for(int a = 1; a <= 11; a++)
+		{
+			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_return_" + a, 0.0f, 0.5f, "", false);
+		}
+		 Pathfinder_Track_Start("maintenance_infected_1",true,1.0f,"");
+
 		return false;
 	}
 
