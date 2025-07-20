@@ -1986,8 +1986,12 @@ class cScrMap : iScrMap
 	//TriggerArea_monsterreturn
 	bool player_return_spawn_monster(const tString &in asParent, const tString &in asChild, int alState)
 	{
-		Entity_SetActive("maintenance_infected_1",true);
-		Pathfinder_Track_Clear("maintenance_infected_1");
+		Entity_SetActive("maintenance_infected_1",true);//reenable monster
+		Pathfinder_Track_Clear("maintenance_infected_1");//clear path
+		Entity_SetVarFloat("maintenance_infected_1","WalkSpeedMul",2.0f);//update walk speed
+		Agent_TeleportFeetToEntity("maintenance_infected_1","PathNode_return_10");// tp to new loc
+		Agent_FaceEntity("maintenance_infected_1", "maintenance_infected_1_target");// face correct direction
+		
 		for(int a = 1; a <= 11; a++)
 		{
 			Pathfinder_Track_Add("maintenance_infected_1", "PathNode_return_" + a, 0.0f, 0.5f, "", false);
